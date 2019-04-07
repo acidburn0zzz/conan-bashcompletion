@@ -1,0 +1,467 @@
+#!/bin/bash
+#
+# bash completion for conan
+#
+# This work is inspired by the completion script for the docker command.
+#
+# This script provides completion of:
+#  - commands and their options
+#  - references names
+#  - filepaths
+#
+# To enable the completions either:
+#  - place this file in /etc/bash_completion.d
+#  or
+#  - copy this file to e.g. ~/.conan-completion and add the line
+#    below to your .bashrc after bash completion features are loaded
+#    . ~/.conan-completion
+
+__conan_previous_extglob_setting=$(shopt -p extglob)
+shopt -s extglob
+
+__conan_q() {
+	conan 2>/dev/null "${top_level_options[@]}" "$@"
+}
+
+# Transforms a multiline list of strings into a single line string
+# with the words separated by "|".
+__conan_to_alternatives() {
+	local parts=( $1 )
+	local IFS='|'
+	echo "${parts[*]}"
+}
+
+# Transforms a multiline list of options into an extglob pattern
+# suitable for use in case statements.
+__conan_to_extglob() {
+	local extglob=$( __conan_to_alternatives "$1" )
+	echo "@($extglob)"
+}
+
+# Determines whether the option passed as the first argument exist on
+# the commandline. The option may be a pattern, e.g. `--force|-f`.
+__conan_has_option() {
+	local pattern="$1"
+	for (( i=2; i < $cword; ++i)); do
+		if [[ ${words[$i]} =~ ^($pattern)$ ]] ; then
+			return 0
+		fi
+	done
+	return 1
+}
+
+# TODO if the preceding command has options that accept arguments and an
+# argument is equal ot one of the subcommands, this is falsely detected as
+# a match.
+__conan_subcommands() {
+	local subcommands="$1"
+
+	local counter=$((command_pos + 1))
+	while [ "$counter" -lt "$cword" ]; do
+		case "${words[$counter]}" in
+			$(__docker_to_extglob "$subcommands") )
+				subcommand_pos=$counter
+				local subcommand=${words[$counter]}
+				local completions_func=_conan_${command}_${subcommand//-/_}
+				declare -F "$completions_func" >/dev/null && "$completions_func"
+				return 0
+				;;
+		esac
+		(( counter++ ))
+	done
+	return 1
+}
+
+# __conan_pos_first_nonflag finds the position of the first word that is neither
+# option nor an option's argument. If there are options that require arguments,
+# you should pass a glob describing those options, e.g. "--option1|-o|--option2"
+# Use this function to restrict completions to exact positions after the argument list.
+__conan_pos_first_nonflag() {
+	local argument_flags=$1
+
+	local counter=$((${subcommand_pos:-${command_pos}} + 1))
+	while [ "$counter" -le "$cword" ]; do
+		if [ -n "$argument_flags" ] && eval "case '${words[$counter]}' in $argument_flags) true ;; *) false ;; esac"; then
+			(( counter++ ))
+			# eat "=" in case of --option=arg syntax
+			[ "${words[$counter]}" = "=" ] && (( counter++ ))
+		else
+			case "${words[$counter]}" in
+				-*)
+					;;
+				*)
+					break
+					;;
+			esac
+		fi
+
+		# Bash splits words at "=", retaining "=" as a word, examples:
+		# "--debug=false" => 3 words, "--log-opt syslog-facility=daemon" => 4 words
+		while [ "${words[$counter + 1]}" = "=" ] ; do
+			counter=$(( counter + 2))
+		done
+
+		(( counter++ ))
+	done
+
+	echo $counter
+}
+
+# Returns `key` if we are currently completing the value of a map option (`key=value`)
+# which matches the extglob passed in as an argument.
+# This function is needed for key-specific completions.
+__conan_map_key_of_current_option() {
+        local glob="$1"
+
+        local key glob_pos
+        if [ "$cur" = "=" ] ; then        # key= case
+                key="$prev"
+                glob_pos=$((cword - 2))
+        elif [[ $cur == *=* ]] ; then     # key=value case (OSX)
+                key=${cur%=*}
+                glob_pos=$((cword - 1))
+        elif [ "$prev" = "=" ] ; then
+                key=${words[$cword - 2]}  # key=value case
+                glob_pos=$((cword - 3))
+        else
+                return
+        fi
+
+        [ "${words[$glob_pos]}" = "=" ] && ((glob_pos--))  # --option=key=value syntax
+
+        [[ ${words[$glob_pos]} == @($glob) ]] && echo "$key"
+}
+
+# suppress trailing whitespace
+__conan_nospace() {
+	# compopt is not available in ancient bash versions
+	type compopt &>/dev/null && compopt -o nospace
+}
+
+
+
+# Outputs a list of all references, regardless of their running state.
+# Arguments for `conan ps` may be passed in order to filter the reference list,
+# e.g. `--query` `--remote` .
+__conan_references() {
+	__conan_q search --raw "$@"
+}
+
+
+__conan_references_fast(){
+	ls -d1 $command_data/data/*/*/*/*/ | sed -rn 's#'"$command_data"'/data/(.*)/(.*)/(.*)/(.*)/#\1/\2@\3/\4#p'
+}
+
+__conan_packages_fast(){
+	ls -d1 $command_data/data/*/*/*/*/package/*/ | sed -rn 's#'"$command_data"'/data/(.*)/(.*)/(.*)/(.*)/package/(.*)/#\5#p'
+}
+
+# Applies completion of references based on the current value of `$cur`.
+# Arguments for `conan search --raw` may be passed in order to filter the references list,
+# see `__conan_references`.
+__conan_complete_references() {
+	COMPREPLY=( $(compgen -W "$(__conan_references_fast "$@")" -- "$cur") )
+}
+
+__conan_complete_references_or_directories() {
+	COMPREPLY=( $(compgen -d -W "$(__conan_references_fast "$@")" -- "$cur") )
+}
+
+__conan_remotes(){
+	conan remote list --raw | awk '{ print $1 }'
+}
+
+__conan_remotes_fast(){
+	cat $command_data/registry.json | sed -rn 's#"name".*"(.*)"#\1#p' 
+}
+
+# Applies completion of remotes based on the current value of `$cur`.
+# Arguments for `conan search --raw` may be passed in order to filter the references list,
+# see `__conan_remotes`.
+__conan_complete_remotes() {
+	COMPREPLY=( $(compgen -W "$(__conan_remotes_fast "$@")" -- "$cur") )
+}
+
+
+
+
+# Applies completion of generators based on the current value of `$cur`.
+# Arguments for `conan search --raw` may be passed in order to filter the references list,
+# see `__conan_remotes`.
+__conan_complete_generators() {
+	COMPREPLY=( $( compgen -W "
+		cmake
+		cmake_multi
+		cmake_paths
+		cmake_find_package
+		cmake_find_package_multi
+		visual_studio
+		visual_studio_multi
+		visual_studio_legacy
+		xcode
+		compiler_args
+		gcc
+		Boost Build
+		B2
+		qbs
+		qmake
+		scons
+		pkg_config
+		virtualenv
+		virtualbuildenv
+		virtualrunenv
+		youcompleteme
+		txt
+		json
+		premake
+		make
+	" -- "$cur" ) )
+}
+
+_conan_complete_reference_options()
+{
+	reciepe="$1"
+
+	#get options from the reciepe
+	#echo reciepe="$reciepe"
+	local options=""
+	if [ ! "$reciepe" == "" ]; then
+		options=$(conan inspect "$reciepe" -a options | sed -rn 's# +(\w+)\:.*#\1=#p')
+	fi
+	#echo options="$options"
+
+	COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
+}
+
+__conan_profiles_fast() {
+	ls -d1 $command_data/profiles/* | sed -rn 's#'"$command_data"'/profiles/(.*)#\1#p'
+}
+
+# Applies completion of profiles based on the current value of `$cur`.
+# Arguments for `conan search --raw` may be passed in order to filter the references list,
+# see `__conan_profiles`.
+__conan_complete_profiles() {
+	COMPREPLY=( $(compgen -W "$(__conan_profiles_fast "$@")" -- "$cur") ) 
+}
+
+
+# The services for which at least one running container exists
+__conan_complete_running_services() {
+	local names=$(__conan_services --filter status=running)
+	COMPREPLY=( $(compgen -W "$names" -- "$cur") )
+}
+
+
+_conan_conan() {
+	case "$prev" in
+		$(__conan_to_extglob "$daemon_options_with_args") )
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$daemon_boolean_options $daemon_options_with_args $top_level_options_with_args --help -h --version -v" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "${commands[*]}" -- "$cur" ) )
+			;;
+	esac
+}
+
+_conan_help() {
+	COMPREPLY=( $( compgen -W "${commands[*]}" -- "$cur" ) )
+}
+
+_conan_alias() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help -h" -- "$cur" ) )
+			;;
+		*)
+			__conan_complete_references
+			;;
+	esac
+}
+
+
+
+_conan_get() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help -h -raw --raw" -- "$cur" ) )
+			;;
+		-p)
+			__conan_complete_packages
+			;;
+		-r)
+			__conan_complete_remotes
+			;;
+		*)
+			__conan_complete_references
+			;;
+	esac
+}
+
+_conan_install() 
+{
+	local install_options="--help -h -u --update -v --verify --no-imports -p --profile -r --remote -b --build -e -env -g --generator -o --options"
+	#local install_options_blob = "$(echo $install_options | sed 's# #|#g' )"
+	local install_options_blob="--help|-h|-u|--update|-v|--verify|--no-imports|-p|--profile|-r|--remote|-b|--build|-e|-env|-g|--generator|-o|--options"
+	
+
+	#Get reference or path to conanfile
+	local counter=$(__conan_pos_first_nonflag $install_options_blob)
+	local reciepe=""	
+	local reciepe_path=""
+	local reciepe_reference=""
+	#echo "counter="$counter
+	if [ "$counter" -ge "1" ]; then
+		reciepe="${words[$counter]}"
+		#echo  "new reciepe="$reciepe "words="${words[@]}
+
+		#Reciepe is path
+		[ -f $reciepe/conanfile.py ]  && reciepe_path="$reciepe/conanfile.py"
+		[ -f $reciepe/conanfile.txt ]  && reciepe_path="$reciepe/conanfile.txt"
+		if [ "$reciepe_path" == "" ]; then
+			 reciepe_reference="$reciepe"
+		fi
+	fi
+	
+	case "$prev" in
+		--update|-u)
+			return
+			;;
+		--profile|-pr)
+			__conan_complete_profiles
+			return
+			;;
+		--remote|-r)
+			__conan_complete_remotes
+			return
+			;;
+		--build|-b)
+			COMPREPLY=( $( compgen -W "missing outdated always never" "$cur" ) )
+			return
+			;;
+		--env|-e)
+			COMPREPLY=( $( compgen -W "$cur" ) )
+			return
+			;;
+		--generator|-g)
+			__conan_complete_generators
+			__conan_nospace
+			return;
+			;;
+		--options|-o)
+			_conan_complete_reference_options $reciepe
+			return
+			;;
+	esac
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$install_options" -- "$cur" ) )
+			;;
+		*)
+
+			#Get reference or path to conanfile if already defined
+			if [ "$reciepe" == "" ]; then
+				__conan_complete_references				
+			else	
+				__conan_complete_references_or_directories
+			fi
+			;;
+	esac
+}
+
+
+#Main function
+_conan() {
+	local previous_extglob_setting=$(shopt -p extglob)
+	shopt -s extglob
+
+	local commands=(
+		alias
+		help
+		get
+		install
+		config
+		info
+		search
+		new
+		create
+		upload
+		export
+		export-pkg
+		test
+		source
+		build
+		package
+		profile
+		remote
+		user
+		imports
+		copy
+		remove
+		download
+	)
+
+	# Options for the conan client that have to be passed to secondary calls to
+	# conan executed by this script.
+	local daemon_boolean_options="
+	"
+	local daemon_options_with_args="
+	"
+
+	# These options are require special treatment when searching the command.
+	local top_level_options_with_args="
+	"
+
+	# Get reference or path of reciepe
+	local reciepe=""
+	COMPREPLY=()
+	local cur prev words cword
+	_get_comp_words_by_ref -n : cur prev words cword
+
+	# search subcommand and invoke its handler.
+	# special treatment of some top-level options
+	local command='conan' command_pos=0 subcommand_pos
+        local command_data='/home/saidani/.conan'
+	local top_level_options=()
+	local counter=1
+	while [ $counter -lt $cword ]; do
+		case "${words[$counter]}" in
+			$(__conan_to_extglob "$daemon_boolean_options") )
+				local opt=${words[counter]}
+				top_level_options+=($opt)
+				;;
+			$(__conan_to_extglob "$daemon_options_with_args") )
+				local opt=${words[counter]}
+				local arg=${words[++counter]}
+				top_level_options+=($opt $arg)
+				;;
+			$(__conan_to_extglob "$top_level_options_with_args") )
+				(( counter++ ))
+				;;
+			-*)
+				;;
+			*)
+				command="${words[$counter]}"
+				command_pos=$counter
+				break
+				;;
+		esac
+		(( counter++ ))
+	done
+
+	local completions_func=_conan_${command//-/_}
+	declare -F $completions_func >/dev/null && $completions_func
+
+	eval "$previous_extglob_setting"
+	return 0
+}
+
+eval "$__conan_previous_extglob_setting"
+unset __conan_previous_extglob_setting
+
+complete -F _conan conan
