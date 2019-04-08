@@ -283,23 +283,11 @@ _conan_alias() {
 
 
 
-_conan_get() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help -h -raw --raw" -- "$cur" ) )
-			;;
-		-p)
-			__conan_complete_packages
-			;;
-		-r)
-			__conan_complete_remotes
-			;;
-		*)
-			__conan_complete_references
-			;;
-	esac
-}
 
+
+###############################################
+# conan install ...
+###############################################
 _conan_install() 
 {
 	local install_options="--help -h -u --update -v --verify --no-imports -p --profile -r --remote -b --build -e -env -g --generator -o --options"
@@ -470,6 +458,33 @@ _conan_config_install() {
 			;;
 	esac
 }
+
+###############################################
+# conan get ...
+###############################################
+_conan_get() {
+	local options="-h --help -r --remote -raw --raw"
+	case "$prev" in
+		-r|--remote)
+			__conan_complete_remotes
+			return
+			;;
+		-p|--package)
+			#__conan_complete_packages
+			return
+			;;
+	esac
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
+			;;
+
+		*)
+			__conan_complete_references
+			;;
+	esac
+}
+
 #Main function
 _conan() {
 	local previous_extglob_setting=$(shopt -p extglob)
