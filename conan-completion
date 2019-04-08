@@ -222,14 +222,11 @@ _conan_complete_reference_options()
 {
 	reciepe="$1"
 
-	#get options from the reciepe
-	#echo reciepe="$reciepe"
+	#Print options
 	local options=""
 	if [ ! "$reciepe" == "" ]; then
 		options=$(conan inspect "$reciepe" -a options | sed -rn 's# +(\w+)\:.*#\1=#p')
 	fi
-	#echo options="$options"
-
 	COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
 }
 
@@ -328,6 +325,23 @@ _conan_install()
 		fi
 	fi
 	
+	#Completion des options
+	local key=$(__conan_map_key_of_current_option '--option|-o')
+
+	#Get reference or path to conanfile if already defined
+	if [ ! "$key" == "" ]; then
+		
+	
+		#Print options
+		local options=""
+		if [ ! "$reciepe" == "" ]; then
+			options=$(conan inspect "$reciepe" -a options | sed -rn "s# +$key\: \[(.*)\]#\1#p" | sed 's# *, *# #g' )
+		fi
+
+		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
+		return
+	fi
+	
 	case "$prev" in
 		--update|-u)
 			return
@@ -355,6 +369,7 @@ _conan_install()
 			;;
 		--options|-o)
 			_conan_complete_reference_options $reciepe
+			__conan_nospace
 			return
 			;;
 	esac
