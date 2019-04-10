@@ -7,7 +7,16 @@
 # This script provides completion of:
 #  - commands and their options
 #  - references names
+#  - remotes
+#  - profiles
+#  - generators
 #  - filepaths
+#  - configuration items (.conan/conan.conf)
+#  - [TODO] settings
+#  - [TODO] packages id 
+# if the reference is defined, this script provides completion of:
+#  - receipie options and its values (if not 'ANY')
+#  - [TODO] dependencies package for (--build=<packX>)
 #
 # To enable the completions either:
 #  - place this file in /etc/bash_completion.d
@@ -168,7 +177,7 @@ __conan_complete_references_or_directories() {
 }
 
 __conan_remotes(){
-	conan remote list --raw | awk '{ print $1 }'
+	__conan_q remote list --raw | awk '{ print $1 }'
 }
 
 __conan_remotes_fast(){
@@ -220,12 +229,9 @@ __conan_complete_generators() {
 
 _conan_complete_reference_options()
 {
-	reciepe="$1"
-
-	#Print options
 	local options=""
 	if [ ! "$reciepe" == "" ]; then
-		options=$(conan inspect "$reciepe" -a options | sed -rn 's# +(\w+)\:.*#\1=#p')
+		options=$(__conan_q inspect "$reciepe" -a options | sed -rn 's# +(\w+)\:.*#\1=#p')
 	fi
 	COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
 }
@@ -242,10 +248,23 @@ __conan_complete_profiles() {
 }
 
 
-# The services for which at least one running container exists
-__conan_complete_running_services() {
-	local names=$(__conan_services --filter status=running)
-	COMPREPLY=( $(compgen -W "$names" -- "$cur") )
+# This functions takes the options list of a command (--option1|--option2|...)
+# It returns the reciepe (ie the first non command arguments)
+# it tells if the path or a reference
+__conan_get_current_reciepe()
+{
+	local command_options_blob=$1
+	reciepe=""
+	reciepe_type="reference"
+
+ 	#Get reference or path to conanfile
+	local counter=$(__conan_pos_first_nonflag $command_options_blob)
+	if [ "$counter" -ge "1" ]; then
+		reciepe="${words[$counter]}"
+		#Reciepe is path
+		[ -f $reciepe/conanfile.py ]  && reciepe_type="$reciepe/conanfile.py"
+		[ -f $reciepe/conanfile.txt ]  && reciepe_type="$reciepe/conanfile.txt"
+	fi
 }
 
 
@@ -282,53 +301,25 @@ _conan_alias() {
 }
 
 
-
-
-
-###############################################
-# conan install ...
-###############################################
-_conan_install() 
+_conan_complete_common_options() 
 {
-	local install_options="--help -h -u --update -v --verify --no-imports -p --profile -r --remote -b --build -e -env -g --generator -o --options"
-	local install_options_blob=$(echo $install_options | sed 's# #|#g')
+	#Get current reciepe if defined (-> reciepe,reciepe_type)
+	__conan_get_current_reciepe $1
 
-	
-
-	#Get reference or path to conanfile
-	local counter=$(__conan_pos_first_nonflag $install_options_blob)
-	local reciepe=""	
-	local reciepe_path=""
-	local reciepe_reference=""
-	#echo "counter="$counter
-	if [ "$counter" -ge "1" ]; then
-		reciepe="${words[$counter]}"
-		#echo  "new reciepe="$reciepe "words="${words[@]}
-
-		#Reciepe is path
-		[ -f $reciepe/conanfile.py ]  && reciepe_path="$reciepe/conanfile.py"
-		[ -f $reciepe/conanfile.txt ]  && reciepe_path="$reciepe/conanfile.txt"
-		if [ "$reciepe_path" == "" ]; then
-			 reciepe_reference="$reciepe"
-		fi
-	fi
-	
-	#Completion des options
+	#Completing map options?
 	local key=$(__conan_map_key_of_current_option '--option|-o')
 
 	#Get reference or path to conanfile if already defined
 	if [ ! "$key" == "" ]; then
-		
-	
-		#Print options
 		local options=""
 		if [ ! "$reciepe" == "" ]; then
-			options=$(conan inspect "$reciepe" -a options | sed -rn "s# +$key\: \[(.*)\]#\1#p" | sed 's# *, *# #g' )
+			options=$(__conan_q inspect "$reciepe" -a options | sed -rn "s# +$key\: \[(.*)\]#\1#p" | sed 's# *, *# #g' )
 		fi
 
 		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
 		return
 	fi
+
 	
 	case "$prev" in
 		--update|-u)
@@ -343,17 +334,13 @@ _conan_install()
 			return
 			;;
 		--build|-b)
-			COMPREPLY=( $( compgen -W "missing outdated always never" "$cur" ) )
+			deps=$(__conan_complete_receipe_deps $reciepe)
+			COMPREPLY=( $( compgen -W "missing outdated always never $deps" "$cur" ) )
 			return
 			;;
 		--env|-e)
 			COMPREPLY=( $( compgen -W "$cur" ) )
 			return
-			;;
-		--generator|-g)
-			__conan_complete_generators
-			__conan_nospace
-			return;
 			;;
 		--options|-o)
 			_conan_complete_reference_options $reciepe
@@ -361,6 +348,32 @@ _conan_install()
 			return
 			;;
 	esac
+
+	return 1
+}
+
+
+###############################################
+# conan install ...
+###############################################
+_conan_install() 
+{
+	local install_options="--help -h -u --update -v --verify --no-imports -p --profile -r --remote -b --build -e -env -g --generator -o --options"
+	local install_options_blob=$(echo $install_options | sed 's# #|#g')
+
+
+	#Handle common options with conan info, conan create, conan test
+	_conan_complete_common_options $install_options_blob && return
+
+	case "$prev" in
+		--generator|-g)
+			__conan_complete_generators
+			__conan_nospace
+			return
+			;;
+	esac
+
+
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "$install_options" -- "$cur" ) )
@@ -485,6 +498,143 @@ _conan_get() {
 	esac
 }
 
+__conan_complete_receipe_deps()
+{
+	local deps=""
+	if [ ! "$reciepe" == "" ]; then
+		deps=$(__conan_q info "$reciepe" -n None| sed -rn 's# *(\w+)/.*#\1#p')
+	fi
+	echo "$deps"
+}
+
+###############################################
+# conan info ...
+###############################################
+_conan_info() {
+	local info_options="-h 
+	--help 
+	--path
+	-bo 
+	--build-order
+	-g 
+	--graph
+	-if 
+	--instal-folder
+	-j 
+	--json
+	-n 
+	--only
+	--package-filter
+	-db 
+	--dry-build
+	-b 
+	--build
+	-e 
+	--env
+	-o 
+	--options
+	-pr 
+	--profile
+	-r 
+	--remote
+	-s 
+	--settings
+	-u 
+	--update
+"
+
+	local info_options_blob=$(__conan_to_extglob $info_options)
+
+	#Handle common options with conan info, conan create, conan test
+	_conan_complete_common_options $info_options_blob && return
+
+	case "$prev" in
+		-h|--help)
+			#stop
+			return
+			;;
+		-g|--graph|-j|-json)
+			_files_dir
+			return
+			;;
+
+		-if|--install-folder)
+			_files_dir -d
+			return
+			;;
+		--package-filter|-bo|--build-order|-db|--dry-build)
+			deps=$(__conan_complete_receipe_deps $reciepe)
+			COMPREPLY=( $( compgen -W "$deps ALL" -- "$cur" ) )
+			return
+			;;
+		-n|--only)
+			local attributes="id build_i remote url license requires update required date author None"
+			COMPREPLY=( $( compgen -W "$attributes" -- "$cur" ) )
+			return
+			;;
+		esac
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$info_options" -- "$cur" ) )
+			;;
+
+		*)
+			__conan_complete_references
+			;;
+	esac
+}
+
+
+
+###############################################
+# conan search ...
+###############################################
+_conan_search() {
+	local search_options="-h 
+	--help 
+	--outdated
+	-o 
+	--query
+	-q
+	--case-sensitive
+	--raw
+	--table
+	-j 
+	--json
+	-rev
+	--revision
+	"
+
+	#local search_options_blob=$(__conan_to_extglob $search_options)
+
+	case "$prev" in
+		-h|--help)
+			#stop
+			return
+			;;
+		-t|--table|-j|-json)
+			_files_dir
+			return
+			;;
+
+		-r|--remote)
+			__conan_complete_remotes
+			return
+			;;
+		-q|--query)
+			return
+			;;
+		esac
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$search_options" -- "$cur" ) )
+			;;
+
+		*)
+			__conan_complete_references_or_directories
+			;;
+	esac
+}
 #Main function
 _conan() {
 	local previous_extglob_setting=$(shopt -p extglob)
@@ -529,6 +679,7 @@ _conan() {
 
 	# Get reference or path of reciepe
 	local reciepe=""
+	local is_reference=""
 	COMPREPLY=()
 	local cur prev words cword
 	_get_comp_words_by_ref -n : cur prev words cword
