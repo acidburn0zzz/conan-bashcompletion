@@ -635,6 +635,73 @@ _conan_search() {
 			;;
 	esac
 }
+
+
+###############################################
+# conan new ...
+###############################################
+_conan_new() {
+	local new_options="-h 
+	--help 
+	-t
+	--test 
+	-i
+	--header
+	-c
+	--pure-c
+	-s
+	--sources 
+	-b
+	--bare
+	-cis
+	--ci-shared 
+	-cilg
+	--cilg-travis-gcc
+	-cilc
+	--ci-travis-clang
+	-cio
+	--ci-travis-osx
+	-ciw
+	--ci-appveyor-win
+	-ciglg
+	--cilg-gitlab-gcc
+	-ciglc
+	--ci-gitlab-clang
+	-ciccc
+	--ci-circleci-gcc
+	-ciccg
+	--ci-circleci-clang
+	-cicco
+	--ci-circleci-osx
+	-gi
+	--gitignore
+	-ciu
+	--ci-upload-url
+"
+
+
+	case "$prev" in
+		-h|--help)
+			#stop
+			return
+			;;
+		-ciu|--ci-upload-url)
+			return
+			;;
+	esac
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$new_options" -- "$cur" ) )
+			;;
+
+		*)
+			#Give name
+			return
+			;;
+	esac
+}
+
+
 #Main function
 _conan() {
 	local previous_extglob_setting=$(shopt -p extglob)
