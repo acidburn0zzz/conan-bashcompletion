@@ -323,7 +323,6 @@ _conan_complete_common_options()
 	
 	case "$prev" in
 		--update|-u)
-			return
 			;;
 		--profile|-pr)
 			__conan_complete_profiles
@@ -700,6 +699,91 @@ _conan_new() {
 			;;
 	esac
 }
+
+###############################################
+# conan create ...
+###############################################
+_conan_create() {
+	local create_options="-h 
+	--help
+	-j 
+	--json
+	-k
+	-ks
+	--keep-source
+	-kb
+	--keep-build 
+	-ne
+	--not-export 
+	-tbf 
+	--test-build-folder
+	-tf
+	--test-order
+	-m
+	--manifests
+	-mi
+	--manifests-interactive
+	-v
+	--verify
+	-b 
+	--build
+	-e 
+	--env
+	-o 
+	--options
+	-pr 
+	--profile
+	-r 
+	--remote
+	-s 
+	--settings
+	-u 
+	--update
+"
+
+	local create_options_blob=$(__conan_to_extglob $create_options)
+
+	#Handle common options with conan info, conan create, conan test
+	_conan_complete_common_options $create_options_blob && return
+
+	case "$prev" in
+		-h|--help)
+			#stop
+			return
+			;;
+		-j|-json)
+			_files_dir
+			return
+			;;
+		-m|--manifests|-mi|--manifests-interactive)
+			_files_dir -d
+			return
+			;;
+		-tf|--test-folder|-tbf|--test-build-folder)
+			_files_dir -d
+			return
+			;;
+		esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$create_options" -- "$cur" ) )
+			;;
+
+		*)
+			counter=$(__conan_pos_first_nonflag $create_options_blob)
+			if [ "$cword" -eq "$counter" ]; then
+				_files_dir -d
+			else
+				new_ref=""
+				[ -z "$CONAN_USER" ] && [ -z "$CONAN_CHANNEL" ] && new_ref="$CONAN_USER/$CONAN_CHANNEL"
+				COMPREPLY=( $( compgen -W "$CONAN_USER/ $new_ref" -- "$cur" ) )
+			fi
+			return
+			;;
+	esac
+}
+
 
 
 #Main function
