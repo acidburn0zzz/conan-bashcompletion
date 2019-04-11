@@ -838,7 +838,7 @@ _conan() {
 	# search subcommand and invoke its handler.
 	# special treatment of some top-level options
 	local command='conan' command_pos=0 subcommand_pos
-        local command_data='/home/saidani/.conan'
+    local command_data="$HOME/.conan"
 	local top_level_options=()
 	local counter=1
 	while [ $counter -lt $cword ]; do
