@@ -455,7 +455,7 @@ _conan_config_set() {
 
 
 _conan_config_install() {
-	local options="-h --help --verify-ssl --type -t -a --args -sf -tf"
+	local options="-h --help --verify-ssl --type -t -a --args -sf --source-folder -tf --target-folder"
 	case "$prev" in
 		--verify-ssl)
 			COMPREPLY=( $( compgen -W  "True False" -- "$cur" ) )
