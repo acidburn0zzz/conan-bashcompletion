@@ -875,6 +875,47 @@ _conan_upload() {
 }
 
 
+###############################################
+# conan export ...
+###############################################
+_conan_export() {
+	local export_options="-h 
+	--help
+	-k
+	-ks
+	--keep-source
+"
+
+	local export_options_blob=$(__conan_to_extglob $export_options)
+
+	#Get the first argument that is not an option
+	local first=$(__conan_pos_first_nonflag $export_options_blob)
+
+	case "$prev" in
+		-h|--help)
+			#stop
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$export_options" -- "$cur" ) )
+			;;
+
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				_filedir -d
+			else
+				__conan_complete_references
+			fi
+			return
+			;;
+	esac
+}
+
+
+
 #Main function
 _conan() {
 	local previous_extglob_setting=$(shopt -p extglob)
