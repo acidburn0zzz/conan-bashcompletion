@@ -147,7 +147,11 @@ __conan_nospace() {
 	type compopt &>/dev/null && compopt -o nospace
 }
 
-
+# Complete numbers
+__conan_complete_number() {
+			COMPREPLY=( $( compgen -W "1 2 3 4 5 6 7 8 9 0" -- "" ) )
+			__conan_nospace
+}
 
 # Outputs a list of all references, regardless of their running state.
 # Arguments for `conan ps` may be passed in order to filter the reference list,
@@ -162,7 +166,20 @@ __conan_references_fast(){
 }
 
 __conan_packages_fast(){
-	ls -d1 $command_data/data/*/*/*/*/package/*/ | sed -rn 's#'"$command_data"'/data/(.*)/(.*)/(.*)/(.*)/package/(.*)/#\5#p'
+case $reciepe in 
+    */*@*/*)
+	reciepe_path=$(echo $reciepe | sed 's#@#/#g')
+	ls 2>/dev/null -d1 $command_data/data/$reciepe_path/package/*/ | sed -rn 's#'"$command_data"'/data/'"$reciepe_path"'/package/(.*)/#\1#p'
+	return
+	;;
+     *)
+	ls 2>/dev/null -d1 $command_data/data/*/*/*/*/package/*/ | sed -rn 's#'"$command_data"'/data/.*/.*/.*/.*/package/(.*)/#\1#p'
+	;;
+esac
+}
+
+__conan_user_channel_fast(){
+	ls 2>/dev/null -d1 $command_data/data/*/*/*/*/ | sed -rn 's#'"$command_data"'/data/(.*)/(.*)/(.*)/(.*)/#\3/\4#p'
 }
 
 # Applies completion of references based on the current value of `$cur`.
@@ -181,7 +198,7 @@ __conan_remotes(){
 }
 
 __conan_remotes_fast(){
-	cat $command_data/registry.json | sed -rn 's#"name".*"(.*)"#\1#p' 
+	cat 2>/dev/null $command_data/registry.json | sed -rn 's#"name".*"(.*)"#\1#p' 
 }
 
 # Applies completion of remotes based on the current value of `$cur`.
@@ -231,13 +248,13 @@ _conan_complete_reference_options()
 {
 	local options=""
 	if [ ! "$reciepe" == "" ]; then
-		options=$(__conan_q inspect "$reciepe" -a options | sed -rn 's# +(\w+)\:.*#\1=#p')
+		options=$(__conan_q inspect "$reciepe" -a options | sed -rn 's# +(\w+)\:.*#\1#p')
 	fi
-	COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
+	COMPREPLY=( $( compgen -W "$options" -S = -- "$cur" ) )
 }
 
 __conan_profiles_fast() {
-	ls -d1 $command_data/profiles/* | sed -rn 's#'"$command_data"'/profiles/(.*)#\1#p'
+	ls 2>/dev/null -d1 $command_data/profiles/* | sed -rn 's#'"$command_data"'/profiles/(.*)#\1#p'
 }
 
 # Applies completion of profiles based on the current value of `$cur`.
@@ -553,12 +570,12 @@ _conan_info() {
 			return
 			;;
 		-g|--graph|-j|-json)
-			_files_dir
+			_filedir
 			return
 			;;
 
 		-if|--install-folder)
-			_files_dir -d
+			_filedir -d
 			return
 			;;
 		--package-filter|-bo|--build-order|-db|--dry-build)
@@ -612,7 +629,7 @@ _conan_search() {
 			return
 			;;
 		-t|--table|-j|-json)
-			_files_dir
+			_filedir
 			return
 			;;
 
@@ -694,7 +711,7 @@ _conan_new() {
 			;;
 
 		*)
-			#Give name
+			#Only one argument
 			return
 			;;
 	esac
@@ -752,15 +769,15 @@ _conan_create() {
 			return
 			;;
 		-j|-json)
-			_files_dir
+			_filedir
 			return
 			;;
 		-m|--manifests|-mi|--manifests-interactive)
-			_files_dir -d
+			_filedir -d
 			return
 			;;
 		-tf|--test-folder|-tbf|--test-build-folder)
-			_files_dir -d
+			_filedir -d
 			return
 			;;
 		esac
@@ -773,17 +790,89 @@ _conan_create() {
 		*)
 			counter=$(__conan_pos_first_nonflag $create_options_blob)
 			if [ "$cword" -eq "$counter" ]; then
-				_files_dir -d
+				_filedir -d
 			else
-				new_ref=""
-				[ -z "$CONAN_USER" ] && [ -z "$CONAN_CHANNEL" ] && new_ref="$CONAN_USER/$CONAN_CHANNEL"
-				COMPREPLY=( $( compgen -W "$CONAN_USER/ $new_ref" -- "$cur" ) )
+				COMPREPLY=( $( compgen -W "$(__conan_user_channel_fast $@)" -- "$cur" ) )
 			fi
 			return
 			;;
 	esac
 }
 
+###############################################
+# conan upload ...
+###############################################
+_conan_upload() {
+	local upload_options="-h 
+	--help
+	-p
+	--package
+	-q
+	--query
+	-r
+	--remote
+	--all
+	--skip-upload
+	--keep-source
+	--force
+	--check 
+	-c
+	--confirm 
+	--retry 
+	--retry-wait
+	-no
+	--no-overwrite
+	-j 
+	--json
+"
+
+	local upload_options_blob=$(__conan_to_extglob $upload_options)
+
+	#Get current reciepe (if exist into
+	__conan_get_current_reciepe $upload_options_blob
+
+
+	case "$prev" in
+		-h|--help)
+			#stop
+			return
+			;;
+		-p|--package)
+			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $reciepe)" -- "$cur" ) )
+			return
+			;;
+		-q|--query)
+			;;
+		-j|-json)
+			_filedir json
+			return
+			;;
+		-r|--remote)
+			__conan_complete_remotes
+			return
+			;;
+		--retry|--retry-wait)
+			__conan_complete_number
+			return
+			;;
+
+		-no)
+			COMPREPLY=( $( compgen -W "all recipe" -- "$cur" ) )
+			return
+			;;
+		esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$upload_options" -- "$cur" ) )
+			;;
+
+		*)
+			__conan_complete_references
+			return
+			;;
+	esac
+}
 
 
 #Main function
