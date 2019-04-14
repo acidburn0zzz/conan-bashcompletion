@@ -968,6 +968,7 @@ __conan_process_arg_options()
 			return
 			;;
 		--env|-e)
+			#TODO FIX
 			COMPREPLY=( $( compgen -W "$cur" ) )
 			return
 			;;
@@ -977,6 +978,7 @@ __conan_process_arg_options()
 			return
 			;;
 		--settings|-s)
+			#TODO FIX
 			__conan_complete_settings
 			__conan_nospace
 			return;
@@ -1128,6 +1130,62 @@ _conan_export_pkg() {
 			;;
 	esac
 }
+
+
+###############################################
+# conan test ...
+###############################################
+_conan_test() {
+	local test_options="-h 
+	--help
+	-tbf
+	--test-build-folder
+	-e
+	--env
+	-o
+	--options
+	-pr
+	--profile
+	-s
+	--settings
+	-r
+	--remote
+	-u
+	--update
+"
+
+	local test_options_blob=$(__conan_to_extglob $test_options)
+
+	#Get current reciepe, if defined
+	__conan_get_current_reciepe $test_options_blob
+
+	# Process arg map options (--opt key=value)
+	__conan_complete_package_options && return
+	__conan_complete_settings_by_key && return
+
+	#process arg options (--opt=value_opt)
+	__conan_process_arg_options && return
+
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $test_options_blob)
+
+	#process non flags options
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$test_options" -- "$cur" ) )
+			;;
+
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				_filedir -d
+			else
+				__conan_complete_references
+			fi
+			return
+			;;
+	esac
+}
+
 
 #Main function
 _conan() {
