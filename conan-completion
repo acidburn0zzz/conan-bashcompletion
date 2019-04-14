@@ -1334,7 +1334,7 @@ _conan_package() {
 
 
 ###############################################
-# conan package ...
+# conan editable ...
 ###############################################
 _conan_editable() {
 	local subcommands="
@@ -1416,6 +1416,74 @@ _conan_editable_list()
 	esac
 }
 
+
+###############################################
+# conan workspace ...
+###############################################
+_conan_workspace() {
+	local subcommands="
+		install
+	"
+	__conan_subcommands "$subcommands" && return
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+
+_conan_workspace_install() 
+{
+	local workspace_install_options="-h 
+	--help
+	-b
+	--build
+	-e
+	--env
+	-o
+	--options
+	-pr
+	--profile
+	-r
+	--remote
+	-s
+	--settings
+	-u
+	--update
+"
+	#TODO : complete options & settings for workspace? ...
+	local workspace_install_options_blob=$(__conan_to_extglob $workspace_install_options)
+
+	#Get current reciepe, if defined
+	__conan_get_current_reciepe $workspace_install_options_blob
+
+	# Process arg map options (--opt key=value)
+	__conan_complete_package_options && return
+	__conan_complete_settings_by_key && return
+
+
+	#process arg options (--opt=value_opt)
+	__conan_process_arg_options $workspace_install_options_blob && return
+
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $workspace_install_options_blob)
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$workspace_install_options" -- "$cur" ) )
+			;;
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				#workspace definition file
+				_filedir yml
+			fi
+			return
+	esac
+}
 
 
 #Main function
