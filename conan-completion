@@ -1010,17 +1010,17 @@ __conan_process_arg_options()
 			_filedir -d
 			return
 			;;
-		-tf|--test-folder|-tbf|--test-build-folder|-bf|--build-folder|-pf|--package-folder|-sf|--source-folder|-if|--source-folder)
+		-tf|--test-folder|-tbf|--test-build-folder|-bf|--build-folder|-pf|--package-folder|-sf|--source-folder|-if|--source-folder|-imf|--import-folder)
 			_filedir -d
 			return
 			;;
 
 		-t|--table)
-			_filedir
+			_filedir html
 			return
 			;;
 		-j|--json)
-			_filedir
+			_filedir json
 			return
 			;;
 
@@ -1707,6 +1707,50 @@ _conan_user() {
 	esac
 }
 
+###############################################
+# conan imports ...
+###############################################
+_conan_imports() {
+	local imports_options="-h 
+	--help
+	-if
+	--install-folder
+	-imf
+	--import-folder
+	-u
+	--undo
+"
+	local imports_options_blob=$(__conan_to_extglob $imports_options)
+
+	#process arg options (--opt=value_opt)
+	case $prev in
+		#Can't be handle by process_arg_options function 
+		#because -p stands for --package
+		-u|--undo) 
+			;;
+		*)
+			__conan_process_arg_options $imports_options_blob && return
+			;;
+	esac
+
+
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $imports_options_blob)
+
+	#process non flags options
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$imports_options" -- "$cur" ) )
+			;;
+
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				_filedir -d	
+			fi
+			return
+			;;
+	esac
+}
 
 
 ###############################################
