@@ -1549,14 +1549,14 @@ _conan_profile_new()
 
 _conan_profile_get() 
 {
-	local profile_new_options="-h 
+	local profile_get_options="-h 
 	--help
 "
-	local profile_new_options_blob=$(__conan_to_extglob $profile_new_options)
-	local first=$(__conan_pos_first_nonflag $workspace_install_options_blob)	
+	local profile_get_options_blob=$(__conan_to_extglob $profile_get_options)
+	local first=$(__conan_pos_first_nonflag $profile_get_options_blob)	
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "$profile_new_options" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$profile_get_options" -- "$cur" ) )
 			;;
 		*)
 
@@ -1634,18 +1634,128 @@ _conan_remote_list()
 }
 
 
-_conan_remote_add() 
+_conan_remote_clean() 
 {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-h --help -i --insert -f --force" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
 			;;
 		*)
 			return
 			;;
 	esac
 }
+_conan_remote_add() 
+{
+	local remote_add_options="-h 
+	--help
+	-i 
+	--insert 
+	-f 
+	--force
+"
+	local remote_add_options_blob=$(__conan_to_extglob $remote_add_options)
+	local first=$(__conan_pos_first_nonflag $remote_add_options_blob)
 
+	case "$prev" in
+		-i|--insert)
+			local remotes=( $( __conan_remotes_fast ) )
+			local indexes=$(seq 0 1 ${#remotes[@]})
+			COMPREPLY=( $( compgen -W "$indexes" -- "$cur" ) )
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$remote_add_options" -- "$cur" ) )
+			;;
+		*)
+
+			#TODO first=remote_name second=http://repo_url third=false
+
+			if [ "$cword" == "$first" ]; then
+				[ "$1" == "update" ] && __conan_complete_remotes
+				[ ! "$1" == "update" ] && COMPREPLY=( "*repo_name*" )
+				
+			else
+				COMPREPLY=( "https://*my_repo*" )
+			fi
+
+			return
+			;;
+	esac
+}
+
+_conan_remote_update()
+{
+	_conan_remote_add "update"
+}
+
+
+_conan_remote_remove()
+{
+	local first=$(__conan_pos_first_nonflag "-h|--help")
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			;;
+		*)
+			if [ "$cword" == "$first" ]; then
+				__conan_complete_remotes
+			fi
+			return
+			;;
+	esac
+}
+
+#TODO : count the number of non arguments in the command line --> build array of non-options
+_conan_remote_rename()
+{
+	local first=$(__conan_pos_first_nonflag "-h|--help")
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			;;
+		*)
+			if [ "$cword" == "$first" ]; then
+				__conan_complete_remotes
+			else
+				COMPREPLY=( "*new_name*" )
+			fi
+			return
+			;;
+	esac
+}
+
+
+_conan_remote_list_ref()
+{
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			;;
+	esac
+}
+
+
+_conan_remote_add_ref()
+{
+	local first=$(__conan_pos_first_nonflag "-h|--help")
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			;;
+		*)
+			# TODO : limit 2 arguments			
+			if [ "$cword" == "$first" ]; then
+				__conan_complete_references
+			else
+				__conan_complete_remotes
+			fi
+			;;
+	esac
+}
 
 
 ###############################################
@@ -1782,7 +1892,7 @@ _conan_copy() {
 
 
 ###############################################
-# TODO conan remove ...
+# conan remove ...
 ###############################################
 _conan_remove() {
 	local remove_options="-h 
@@ -1812,7 +1922,7 @@ _conan_remove() {
 	#process arg options (--opt=value_opt)
 	case $prev in
 		#Can't be handle by process_arg_options function 
-		#because -s stands for --settings and ()
+		#because -s stands for --settings
 		-s|--src) 
 			;;
 		-t|--system-reqs) # -t --> --table
@@ -1823,8 +1933,6 @@ _conan_remove() {
 			__conan_process_arg_options $remove_options_blob && return	
 			;;
 	esac
-
-
 
 	#Get the first
 	local first=$(__conan_pos_first_nonflag $remove_options_blob)
