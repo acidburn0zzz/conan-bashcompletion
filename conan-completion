@@ -436,21 +436,10 @@ _conan_config() {
 
 __conan_ini_elements()
 {
-	ini_elements=$(awk -F ' *= *' '{ if ($1 ~ /^\[/) section=$1; else if ($1 !~ /^$/) print section $1 }' $command_data/$1 | sed -rn "s#\[(\w+)\](\w+)#\1.\2$2#p")
+	ini_elements=$(awk -F ' *= *' '{ if ($1 ~ /^\[/) section=$1; else if ($1 !~ /^$/) print section $1 }' $command_data/$1 | sed -rn "s#\[(\w+)\](\w+)#\1.\2#p")
 	echo "$ini_elements"
 }
 
-_conan_config_rm() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
-			;;
-		*)
-			ini_elements=$(__conan_ini_elements conan.conf)
-			COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
-			;;
-	esac
-}
 
 _conan_config_get() {
 	case "$cur" in
@@ -459,22 +448,22 @@ _conan_config_get() {
 			;;
 		*)
 			ini_elements=$(__conan_ini_elements conan.conf)
-			COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
+			if [ "$1" == "=" ]; then
+				COMPREPLY=( $( compgen -W "$ini_elements" -S = -- "$cur" ) )
+				__conan_nospace
+			else
+				COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
+			fi
 			;;
 	esac
 }
 
+_conan_config_rm() {
+	_conan_config_get
+}
+
 _conan_config_set() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
-			;;
-		*)
-			ini_elements=$(__conan_ini_elements conan.conf "=")
-			COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
-			__conan_nospace
-			;;
-	esac
+	_conan_config_get "="
 }
 
 
@@ -1579,8 +1568,14 @@ _conan_profile_get()
 
 			if [ "$cword" -eq "$first" ]; then
 			   #TODO : get the current profile or at least a default one
-			   ini_elements=$(__conan_ini_elements profiles/default)
-			   COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
+			   ini_elements=$(__conan_ini_elements profiles/default "$1")
+			   
+			   if [ "$1" == "=" ]; then
+				COMPREPLY=( $( compgen -W "$ini_elements" -S = -- "$cur" ) )
+				__conan_nospace
+			   else
+				COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
+			   fi
 			else
 			   COMPREPLY=( $( compgen -W "$(__conan_profiles_fast)" -- "$cur" ) )
 			fi
@@ -1592,28 +1587,7 @@ _conan_profile_get()
 
 _conan_profile_update() 
 {
-	local profile_update_options="-h 
-	--help
-"
-	local profile_update_options_blob=$(__conan_to_extglob $profile_update_options)
-	local first=$(__conan_pos_first_nonflag $workspace_install_options_blob)	
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$profile_update_options" -- "$cur" ) )
-			;;
-		*)
-
-			if [ "$cword" -eq "$first" ]; then
-			   #TODO : get the current profile or at least a default one
-			   ini_elements=$(__conan_ini_elements profiles/default "=")
-			   COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
-			   __conan_nospace
-			else
-			   COMPREPLY=( $( compgen -W "$(__conan_profiles_fast)" -- "$cur" ) )
-			fi
-			return
-			;;
-	esac
+	_conan_profile_get "="
 }
 
 _conan_profile_remove() 
