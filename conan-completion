@@ -955,6 +955,10 @@ __conan_process_arg_options()
 	fi
 
 	case "$prev" in
+		-l|--layout)
+			COMPREPLY=( $( compgen -W "$(__conan_layouts_fast)" -- "$cur" ) )
+			return
+			;;
 		-p|--package)
 			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $reciepe)" -- "$cur" ) )
 			return
@@ -1037,6 +1041,11 @@ __conan_process_arg_options()
 	esac
 
 	return 1
+}
+
+__conan_layouts_fast()
+{
+	ls 2>/dev/null -d1 $command_data/profiles/* | sed -rn 's#'"$command_data"'/layouts/(.*)#\1#p'
 }
 
 
@@ -1324,6 +1333,90 @@ _conan_package() {
 }
 
 
+###############################################
+# conan package ...
+###############################################
+_conan_editable() {
+	local subcommands="
+		add
+		remove
+		list
+	"
+	__conan_subcommands "$subcommands" && return
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+
+
+_conan_editable_add() 
+{
+	local editable_add_options="-h 
+	--help
+	-l
+	--layout
+"
+	local editable_add_options_blob=$(__conan_to_extglob $editable_add_options)
+
+	#process arg options (--opt=value_opt)
+	__conan_process_arg_options $editable_add_options_blob && return
+
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $editable_add_options_blob)
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$editable_add_options" -- "$cur" ) )
+			;;
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				_filedir -d
+			else
+				__conan_complete_references
+			fi
+			return
+	esac
+}
+
+_conan_editable_remove() 
+{
+	local editable_remove_options="-h 
+	--help
+"
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $editable_remove_options_blob)
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$editable_remove_options" -- "$cur" ) )
+			;;
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				__conan_complete_references
+			fi
+			return
+	esac
+}
+
+_conan_editable_list() 
+{
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			;;
+		*)
+			return
+			;;
+	esac
+}
+
+
 
 #Main function
 _conan() {
@@ -1346,6 +1439,8 @@ _conan() {
 		source
 		build
 		package
+		editable
+		workspace
 		profile
 		remote
 		user
