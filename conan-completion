@@ -945,6 +945,15 @@ _conan_export() {
 ###  
 __conan_process_arg_options()
 {
+	local arg_options=$1
+	#TODO : Check if the previous word is on the options command list (aka $1) 
+	if false && [ -n "$arg_options" ] && eval "case $prev in $arg_options) false ;; *) true ;; esac"; 		then
+
+		echo "not in : prev=$prev options=$arg_options"
+		#option not processed		
+		return 1
+	fi
+
 	case "$prev" in
 		-p|--package)
 			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $reciepe)" -- "$cur" ) )
@@ -1000,7 +1009,7 @@ __conan_process_arg_options()
 			_filedir -d
 			return
 			;;
-		-tf|--test-folder|-tbf|--test-build-folder|-bf|--build-folder|-pf|--package-folder|-sf|--source-folder)
+		-tf|--test-folder|-tbf|--test-build-folder|-bf|--build-folder|-pf|--package-folder|-sf|--source-folder|-if|--source-folder)
 			_filedir -d
 			return
 			;;
@@ -1109,7 +1118,7 @@ _conan_export_pkg() {
 	__conan_complete_settings_by_key && return
 
 	#process arg options (--opt=value_opt)
-	__conan_process_arg_options && return
+	__conan_process_arg_options  $export_pkg_options_blob && return
 
 	#Get the first
 	local first=$(__conan_pos_first_nonflag $export_options_blob)
@@ -1164,7 +1173,7 @@ _conan_test() {
 	__conan_complete_settings_by_key && return
 
 	#process arg options (--opt=value_opt)
-	__conan_process_arg_options && return
+	__conan_process_arg_options  $test_options_blob && return
 
 	#Get the first
 	local first=$(__conan_pos_first_nonflag $test_options_blob)
@@ -1180,6 +1189,95 @@ _conan_test() {
 				_filedir -d
 			else
 				__conan_complete_references
+			fi
+			return
+			;;
+	esac
+}
+
+
+###############################################
+# conan source ...
+###############################################
+_conan_source() {
+	local source_options="-h 
+	--help
+	-sf
+	--source-folder
+	-if
+	--install-folder
+"
+	local source_options_blob=$(__conan_to_extglob $source_options)
+
+	#process arg options (--opt=value_opt)
+	__conan_process_arg_options $source_options_blob && return
+
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $source_options_blob)
+
+	#process non flags options
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$source_options" -- "$cur" ) )
+			;;
+
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				_filedir -d
+			fi
+			return
+			;;
+	esac
+}
+
+
+
+###############################################
+# conan build ...
+###############################################
+_conan_build() {
+	local build_options="-h 
+	--help
+	-bf
+	--build-folder
+	-if
+	--install-folder
+	-sf
+	--source-folder
+	-if
+	--install-folder
+	-i
+	--install
+	-c
+	--configure
+	-b
+	--build
+	-t
+	--test
+"
+	local build_options_blob=$(__conan_to_extglob $build_options)
+
+	#process arg options (--opt=value_opt)
+	case "$prev" in
+		-b|--build)
+		#Skip the common process for --build
+		return
+		;;
+	esac
+	__conan_process_arg_options $build_options_blob && return
+
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $build_options_blob)
+
+	#process non flags options
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$build_options" -- "$cur" ) )
+			;;
+
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				_filedir -d
 			fi
 			return
 			;;
