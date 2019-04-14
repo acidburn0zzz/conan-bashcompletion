@@ -1016,8 +1016,11 @@ __conan_reference_attributes()
 {
 	local attributes="name version url homepage license author description topics generators exports exports_sources short_paths apply_env build_policy revision_mode settings options default_options"	
 
+
+	#TODO : Is it necessary to get attributes from reciepe 
 	if [ ! "$reciepe" == "" ]; then
 		attributes=$(__conan_q inspect "$reciepe" | sed  -rn "s#(^[^ \t:]+)\:.*#\1#p")
+		echo attributes
 	fi
 
 	echo "$attributes"
@@ -1781,6 +1784,66 @@ _conan_copy() {
 ###############################################
 # TODO conan remove ...
 ###############################################
+_conan_remove() {
+	local remove_options="-h 
+	--help
+	-b
+	--builds
+	-f
+	--force
+	-l
+	--locks
+	-o
+	--outdated
+	-q
+	--query
+	-r
+	--remote
+	-s
+	--src
+	-t
+	--system-reqs
+"
+	local remove_options_blob=$(__conan_to_extglob $remove_options)
+
+	#Get current reciepe, if defined
+	__conan_get_current_reciepe $remove_options_blob
+
+	#process arg options (--opt=value_opt)
+	case $prev in
+		#Can't be handle by process_arg_options function 
+		#because -s stands for --settings and ()
+		-s|--src) 
+			;;
+		-t|--system-reqs) # -t --> --table
+			;;
+		-o|--outdated) #-o --> --options
+			;;
+		*)
+			__conan_process_arg_options $remove_options_blob && return	
+			;;
+	esac
+
+
+
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $remove_options_blob)
+
+	#process non flags options
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$remove_options" -- "$cur" ) )
+			;;
+
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				__conan_complete_references_or_directories	
+			fi
+			return
+			;;
+	esac
+}
+
 
 
 #######################################################################
