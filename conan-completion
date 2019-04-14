@@ -1758,6 +1758,83 @@ _conan_remote_add_ref()
 }
 
 
+_conan_remote_remove_ref()
+{
+	local first=$(__conan_pos_first_nonflag "-h|--help")
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			;;
+		*)			
+			if [ "$cword" == "$first" ]; then
+				__conan_complete_references
+			fi
+			return
+			;;
+	esac
+}
+
+_conan_remote_update_ref()
+{
+	_conan_remote_add_ref
+}
+
+_conan_remote_list_pref()
+{
+	_conan_remote_remove_ref
+}
+
+
+_conan_remote_add_pref()
+{
+	local first=$(__conan_pos_first_nonflag "-h|--help")
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			;;
+		*:*)
+			local reciepe=${cur%:*}
+			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $reciepe)" -- "${cur#*:}" ) )
+			;;
+		*)			
+			if [ "$cword" == "$first" ]; then
+				COMPREPLY=( $(compgen -W "$(__conan_references_fast "$@")" -S : -- "${cur}") )
+			__conan_nospace
+			else
+				__conan_complete_remotes
+			fi
+			;;
+	esac
+
+}
+
+_conan_remote_update_pref()
+{
+	_conan_remote_add_pref
+}
+
+_conan_remote_remove_pref()
+{
+	local first=$(__conan_pos_first_nonflag "-h|--help")
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			;;
+		*:*)
+			reciepe=${cur%:*}
+			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $reciepe)" -- "${cur#*:}" ) )
+			;;
+		*)			
+			if [ "$cword" == "$first" ]; then
+				COMPREPLY=( $(compgen -W "$(__conan_references_fast "$@")" -S : -- "${cur}") )
+			__conan_nospace
+			fi
+			return
+			;;
+	esac
+
+}
+
 ###############################################
 # conan user ...
 ###############################################
