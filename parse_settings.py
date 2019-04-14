@@ -14,13 +14,11 @@ def serialize(x,prefix,isKey):
 				new_prefix=sample
 			else:
 				new_prefix=prefix+"."+sample
-    			print(new_prefix+";",end='')
+    			print(new_prefix+"=",end='')
 			if type(x[sample]) is dict or type(x[sample]) is list:
 				for y in x[sample]:
 					print(y," ",end='')
 				print("")
-		else:
-			print(sample+",")
 		if type(x[sample]) is dict:
 			serialize(x[sample],new_prefix,not isKey)
 		

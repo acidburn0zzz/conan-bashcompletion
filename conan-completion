@@ -352,28 +352,30 @@ _conan_complete_common_options()
 	return 1
 }
 
-
+__conan_from_list_to_glob()
+{
+	echo 2>/dev/null "$1" | sed 2>/dev/null 's# #|#g'
+}
 ###############################################
 # conan install ...
 ###############################################
 _conan_install() 
 {
-	local install_options="--help -h -u --update -v --verify --no-imports -p --profile -r --remote -b --build -e -env -g --generator -o --options"
-	local install_options_blob=$(echo $install_options | sed 's# #|#g')
+	local install_options="--help -h -u --update -v --verify --no-imports -p --profile -r --remote -b --build -e -env -g --generator -o --options -s --settings"
+	local install_options_blob=$(__conan_from_list_to_glob $install_options)
 
+	#Get current reciepe, if defined
+	__conan_get_current_reciepe $install_options_blob
 
-	#Handle common options with conan info, conan create, conan test
-	_conan_complete_common_options $install_options_blob && return
+	# Process arg map options (--opt key=value)
+	__conan_complete_package_options && return
+	__conan_complete_settings_by_key && return
 
-	case "$prev" in
-		--generator|-g)
-			__conan_complete_generators
-			__conan_nospace
-			return
-			;;
-	esac
+	#process arg options (--opt=value_opt)
+	__conan_process_arg_options  $install_options_blob && return
 
-
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $install_options_blob)
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "$install_options" -- "$cur" ) )
