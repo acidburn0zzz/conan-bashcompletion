@@ -1003,8 +1003,24 @@ __conan_process_arg_options()
 			COMPREPLY=( $( compgen -W "$attributes" -- "$cur" ) )
 			return
 			;;
+		-a|--attribute)
+			
+			COMPREPLY=( $( compgen -W "$(__conan_reference_attributes $reciepe)" -- "$cur" ) )
+			return
+			;;
 	esac
 	return 1
+}
+
+__conan_reference_attributes()
+{
+	local attributes="name version url homepage license author description topics generators exports exports_sources short_paths apply_env build_policy revision_mode settings options default_options"	
+
+	if [ ! "$reciepe" == "" ]; then
+		attributes=$(__conan_q inspect "$reciepe" | sed  -rn "s#(^[^ \t:]+)\:.*#\1#p")
+	fi
+
+	echo "$attributes"
 }
 
 __conan_layouts_fast()
@@ -1820,6 +1836,48 @@ _conan_download() {
 			;;
 	esac
 }
+
+
+
+###############################################
+# conan inspect ...
+###############################################
+_conan_inspect() {
+	local inspect_options="-h 
+	--help
+	-a
+	--attribute
+	-r
+	--remote
+	-j
+	--json
+"
+	local inspect_options_blob=$(__conan_to_extglob $inspect_options)
+
+	#Get current reciepe, if defined
+	__conan_get_current_reciepe $inspect_options_blob
+
+	#process arg options (--opt=value_opt)
+	__conan_process_arg_options $inspect_options_blob && return
+
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $inspect_options_blob)
+
+	#process non flags options
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$inspect_options" -- "$cur" ) )
+			;;
+
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				__conan_complete_references_or_directories	
+			fi
+			return
+			;;
+	esac
+}
+
 
 #######################################################################
 # conan help *
