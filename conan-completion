@@ -1709,6 +1709,48 @@ _conan_user() {
 
 
 
+###############################################
+# conan copy ...
+###############################################
+_conan_copy() {
+	local copy_options="-h 
+	--help
+	-p
+	--package
+	--all
+	--force
+"
+	local copy_options_blob=$(__conan_to_extglob $copy_options)
+
+	#Get current reciepe, if defined
+	__conan_get_current_reciepe $copy_options_blob
+
+
+	#process arg options (--opt=value_opt)
+	__conan_process_arg_options $copy_options_blob && return
+
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $copy_options_blob)
+
+	#process non flags options
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$copy_options" -- "$cur" ) )
+			;;
+
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				__conan_complete_references
+			else
+				COMPREPLY=( $( compgen -W "$(__conan_user_channel_fast $@)" -- "$cur" ) )	
+			fi
+			return
+			;;
+	esac
+}
+
+
+
 #Main function
 _conan() {
 	local previous_extglob_setting=$(shopt -p extglob)
