@@ -302,37 +302,6 @@ _conan_conan() {
 	esac
 }
 
-#######################################################################
-# conan help *
-#######################################################################
-_conan_help() 
-{
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help -h" -- "$cur" ) )
-			;;
-		*)
-			COMPREPLY=( $( compgen -W "${commands[*]}" -- "$cur" ) )
-			;;
-	esac
-}
-
-
-#######################################################################
-# conan alias *
-#######################################################################
-_conan_alias() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help -h" -- "$cur" ) )
-			;;
-		*)
-			__conan_complete_references
-			;;
-	esac
-}
-
-
 _conan_complete_common_options() 
 {
 	#Get current reciepe if defined (-> reciepe,reciepe_type)
@@ -1794,6 +1763,26 @@ _conan_copy() {
 
 
 ###############################################
+# TODO conan remove ...
+###############################################
+
+
+#######################################################################
+# conan alias *
+#######################################################################
+_conan_alias() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help -h" -- "$cur" ) )
+			;;
+		*)
+			__conan_complete_references
+			;;
+	esac
+}
+
+
+###############################################
 # conan download ...
 ###############################################
 _conan_download() {
@@ -1832,17 +1821,29 @@ _conan_download() {
 	esac
 }
 
+#######################################################################
+# conan help *
+#######################################################################
+_conan_help() 
+{
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help -h" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "${commands[*]}" -- "$cur" ) )
+			;;
+	esac
+}
 
 #Main function
 _conan() {
 	local previous_extglob_setting=$(shopt -p extglob)
 	shopt -s extglob
 	local commands=(
-		alias
-		help
-		get
 		install
 		config
+		get
 		info
 		search
 		new
@@ -1862,7 +1863,10 @@ _conan() {
 		imports
 		copy
 		remove
+		alias
 		download
+		inspect
+		help
 	)
 
 	# Options for the conan client that have to be passed to secondary calls to
