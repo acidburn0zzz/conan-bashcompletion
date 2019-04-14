@@ -305,8 +305,16 @@ _conan_conan() {
 #######################################################################
 # conan help *
 #######################################################################
-_conan_help() {
-	COMPREPLY=( $( compgen -W "${commands[*]}" -- "$cur" ) )
+_conan_help() 
+{
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help -h" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "${commands[*]}" -- "$cur" ) )
+			;;
+	esac
 }
 
 
@@ -1594,6 +1602,64 @@ _conan_profile_remove()
 {
 	_conan_profile_get
 }
+
+
+###############################################
+# conan remote ...
+###############################################
+_conan_remote() {
+	local subcommands="
+		list
+		add
+		remove
+		update
+		rename
+		list_ref
+		add_ref
+		remove_ref
+		update_ref
+		list_pref
+		add_pref
+		remove_pref
+		update_pref
+		clean
+	"
+	__conan_subcommands "$subcommands" && return
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+_conan_remote_list() 
+{
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help --raw -raw" -- "$cur" ) )
+			;;
+		*)
+			return
+			;;
+	esac
+}
+
+
+_conan_remote_add() 
+{
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-h --help -i --insert -f --force" -- "$cur" ) )
+			;;
+		*)
+			return
+			;;
+	esac
+}
+
 #Main function
 _conan() {
 	local previous_extglob_setting=$(shopt -p extglob)
