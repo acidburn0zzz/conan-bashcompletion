@@ -1769,7 +1769,6 @@ _conan_copy() {
 	#Get current reciepe, if defined
 	__conan_get_current_reciepe $copy_options_blob
 
-
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options $copy_options_blob && return
 
@@ -1793,6 +1792,45 @@ _conan_copy() {
 	esac
 }
 
+
+###############################################
+# conan download ...
+###############################################
+_conan_download() {
+	local download_options="-h 
+	--help
+	-p
+	--package
+	-r
+	--remote
+	-re
+	--reciepe
+"
+	local download_options_blob=$(__conan_to_extglob $download_options)
+
+	#Get current reciepe, if defined
+	__conan_get_current_reciepe $download_options_blob
+
+	#process arg options (--opt=value_opt)
+	__conan_process_arg_options $download_options_blob && return
+
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $download_options_blob)
+
+	#process non flags options
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$download_options" -- "$cur" ) )
+			;;
+
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				__conan_complete_references	
+			fi
+			return
+			;;
+	esac
+}
 
 
 #Main function
