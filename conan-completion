@@ -1020,7 +1020,7 @@ __conan_process_arg_options()
 			return
 			;;
 		-j|--json)
-		_filedir
+			_filedir
 			return
 			;;
 
@@ -1034,9 +1034,7 @@ __conan_process_arg_options()
 			COMPREPLY=( $( compgen -W "$attributes" -- "$cur" ) )
 			return
 			;;
-
 	esac
-
 	return 1
 }
 
@@ -1659,6 +1657,57 @@ _conan_remote_add()
 			;;
 	esac
 }
+
+
+
+###############################################
+# conan user ...
+###############################################
+_conan_user() {
+	local user_options="-h 
+	--help
+	-c
+	--clean
+	-p
+	--password
+	-r
+	--remote
+	-j
+	--json
+"
+	local user_options_blob=$(__conan_to_extglob $user_options)
+
+	#process arg options (--opt=value_opt)
+	case $prev in
+		#Can't be handle by process_arg_options function 
+		#because -p stands for --package
+		-p|--password) 
+			COMPREPLY=( $( compgen -W "*my_password*" -- "$cur" ) )
+			return
+			;;
+	esac
+	__conan_process_arg_options $user_options_blob && return
+
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $user_options_blob)
+
+	#process non flags options
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$user_options" -- "$cur" ) )
+			;;
+
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				#TODO better suggestions ?
+				COMPREPLY=( $( compgen -W "*user_id*" -- "$cur" ) )	
+			fi
+			return
+			;;
+	esac
+}
+
+
 
 #Main function
 _conan() {
