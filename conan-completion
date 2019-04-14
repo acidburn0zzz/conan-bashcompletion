@@ -1285,6 +1285,46 @@ _conan_build() {
 }
 
 
+###############################################
+# conan package ...
+###############################################
+_conan_package() {
+	local package_options="-h 
+	--help
+	-sf
+	--source-folder
+	-if
+	--install-folder
+	-bf
+	--build-folder
+	-pf
+	--package-folder
+"
+	local package_options_blob=$(__conan_to_extglob $package_options)
+
+	#process arg options (--opt=value_opt)
+	__conan_process_arg_options $package_options_blob && return
+
+	#Get the first
+	local first=$(__conan_pos_first_nonflag $package_options_blob)
+
+	#process non flags options
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$package_options" -- "$cur" ) )
+			;;
+
+		*)
+			if [ "$cword" -eq "$first" ]; then
+				_filedir -d
+			fi
+			return
+			;;
+	esac
+}
+
+
+
 #Main function
 _conan() {
 	local previous_extglob_setting=$(shopt -p extglob)
