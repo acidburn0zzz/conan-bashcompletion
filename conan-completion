@@ -166,10 +166,10 @@ __conan_references_fast(){
 }
 
 __conan_packages_fast(){
-case $reciepe in 
+case $recipe in 
     */*@*/*)
-	reciepe_path=$(echo $reciepe | sed 's#@#/#g')
-	ls 2>/dev/null -d1 $command_data/data/$reciepe_path/package/*/ | sed -rn 's#'"$command_data"'/data/'"$reciepe_path"'/package/(.*)/#\1#p'
+	recipe_path=$(echo $recipe | sed 's#@#/#g')
+	ls 2>/dev/null -d1 $command_data/data/$recipe_path/package/*/ | sed -rn 's#'"$command_data"'/data/'"$recipe_path"'/package/(.*)/#\1#p'
 	return
 	;;
      *)
@@ -247,8 +247,8 @@ __conan_complete_generators() {
 _conan_complete_reference_options()
 {
 	local options=""
-	if [ ! "$reciepe" == "" ]; then
-		options=$(__conan_q inspect "$reciepe" -a options | sed -rn 's# +(\w+)\:.*#\1#p')
+	if [ ! "$recipe" == "" ]; then
+		options=$(__conan_q inspect "$recipe" -a options | sed -rn 's# +(\w+)\:.*#\1#p')
 	fi
 	COMPREPLY=( $( compgen -W "$options" -S = -- "$cur" ) )
 }
@@ -266,21 +266,21 @@ __conan_complete_profiles() {
 
 
 # This functions takes the options list of a command (--option1|--option2|...)
-# It returns the reciepe (ie the first non command arguments)
+# It returns the recipe (ie the first non command arguments)
 # it tells if the path or a reference
-__conan_get_current_reciepe()
+__conan_get_current_recipe()
 {
 	local command_options_blob=$1
-	reciepe=""
-	reciepe_type="reference"
+	recipe=""
+	recipe_type="reference"
 
  	#Get reference or path to conanfile
 	local counter=$(__conan_pos_first_nonflag $command_options_blob)
 	if [ "$counter" -ge "1" ]; then
-		reciepe="${words[$counter]}"
-		#Reciepe is path
-		[ -f $reciepe/conanfile.py ]  && reciepe_type="$reciepe/conanfile.py"
-		[ -f $reciepe/conanfile.txt ]  && reciepe_type="$reciepe/conanfile.txt"
+		recipe="${words[$counter]}"
+		#recipe is path
+		[ -f $recipe/conanfile.py ]  && recipe_type="$recipe/conanfile.py"
+		[ -f $recipe/conanfile.txt ]  && recipe_type="$recipe/conanfile.txt"
 	fi
 }
 
@@ -304,8 +304,8 @@ _conan_conan() {
 
 _conan_complete_common_options() 
 {
-	#Get current reciepe if defined (-> reciepe,reciepe_type)
-	__conan_get_current_reciepe $1
+	#Get current recipe if defined (-> recipe,recipe_type)
+	__conan_get_current_recipe $1
 
 	#Completing map options?
 	local key=$(__conan_map_key_of_current_option '--option|-o')
@@ -313,8 +313,8 @@ _conan_complete_common_options()
 	#Get reference or path to conanfile if already defined
 	if [ ! "$key" == "" ]; then
 		local options=""
-		if [ ! "$reciepe" == "" ]; then
-			options=$(__conan_q inspect "$reciepe" -a options | sed -rn "s# +$key\: \[(.*)\]#\1#p" | sed 's# *, *# #g' )
+		if [ ! "$recipe" == "" ]; then
+			options=$(__conan_q inspect "$recipe" -a options | sed -rn "s# +$key\: \[(.*)\]#\1#p" | sed 's# *, *# #g' )
 		fi
 
 		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
@@ -334,7 +334,7 @@ _conan_complete_common_options()
 			return
 			;;
 		--build|-b)
-			deps=$(__conan_complete_receipe_deps $reciepe)
+			deps=$(__conan_complete_receipe_deps $recipe)
 			COMPREPLY=( $( compgen -W "missing outdated always never $deps" "$cur" ) )
 			return
 			;;
@@ -343,7 +343,7 @@ _conan_complete_common_options()
 			return
 			;;
 		--options|-o)
-			_conan_complete_reference_options $reciepe
+			_conan_complete_reference_options $recipe
 			__conan_nospace
 			return
 			;;
@@ -364,8 +364,8 @@ _conan_install()
 	local install_options="--help -h -u --update -v --verify --no-imports -p --profile -r --remote -b --build -e -env -g --generator -o --options -s --settings"
 	local install_options_blob=$(__conan_from_list_to_glob $install_options)
 
-	#Get current reciepe, if defined
-	__conan_get_current_reciepe $install_options_blob
+	#Get current recipe, if defined
+	__conan_get_current_recipe $install_options_blob
 
 	# Process arg map options (--opt key=value)
 	__conan_complete_package_options && return
@@ -383,7 +383,7 @@ _conan_install()
 		*)
 
 			#Get reference or path to conanfile if already defined
-			if [ "$reciepe" == "" ]; then
+			if [ "$recipe" == "" ]; then
 				__conan_complete_references				
 			else	
 				__conan_complete_references_or_directories
@@ -492,8 +492,8 @@ _conan_get() {
 __conan_complete_receipe_deps()
 {
 	local deps=""
-	if [ ! "$reciepe" == "" ]; then
-		deps=$(__conan_q info "$reciepe" -n None| sed -rn 's# *(\w+)/.*#\1#p')
+	if [ ! "$recipe" == "" ]; then
+		deps=$(__conan_q info "$recipe" -n None| sed -rn 's# *(\w+)/.*#\1#p')
 	fi
 	echo "$deps"
 }
@@ -554,7 +554,7 @@ _conan_info() {
 			return
 			;;
 		--package-filter|-bo|--build-order|-db|--dry-build)
-			deps=$(__conan_complete_receipe_deps $reciepe)
+			deps=$(__conan_complete_receipe_deps $recipe)
 			COMPREPLY=( $( compgen -W "$deps ALL" -- "$cur" ) )
 			return
 			;;
@@ -803,8 +803,8 @@ _conan_upload() {
 
 	local upload_options_blob=$(__conan_to_extglob $upload_options)
 
-	#Get current reciepe (if exist into
-	__conan_get_current_reciepe $upload_options_blob
+	#Get current recipe (if exist into
+	__conan_get_current_recipe $upload_options_blob
 
 
 	case "$prev" in
@@ -813,7 +813,7 @@ _conan_upload() {
 			return
 			;;
 		-p|--package)
-			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $reciepe)" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $recipe)" -- "$cur" ) )
 			return
 			;;
 		-q|--query)
@@ -906,7 +906,7 @@ _conan_export() {
 # * variuous type of folders 
 #	 - source,build,package and test folder (-sf,--source-folder,-bf,--build-folder, ...)
 #	 - manifest folder (-m|--manifests|-mi|--manifests-interactive)
-#	 - reciepe folder 
+#	 - recipe folder 
 # * filepath (--json|-j, --table|-t)
 # * Receipe attributes (-n, --only)
 # * numbers for various reasons (--log-level, --retry-wait, --retry 
@@ -928,7 +928,7 @@ __conan_process_arg_options()
 			return
 			;;
 		-p|--package)
-			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $reciepe)" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $recipe)" -- "$cur" ) )
 			return
 			;;
 		-q|--query)
@@ -940,7 +940,7 @@ __conan_process_arg_options()
 			return
 			;;
 		--build|-b)
-			deps=$(__conan_complete_receipe_deps $reciepe)
+			deps=$(__conan_complete_receipe_deps $recipe)
 			COMPREPLY=( $( compgen -W "missing outdated always never $deps" "$cur" ) )
 			return
 			;;
@@ -954,7 +954,7 @@ __conan_process_arg_options()
 			return
 			;;
 		--options|-o)
-			_conan_complete_reference_options $reciepe
+			_conan_complete_reference_options $recipe
 			__conan_nospace
 			return
 			;;
@@ -996,7 +996,7 @@ __conan_process_arg_options()
 			;;
 
 		--package-filter|-bo|--build-order|-db|--dry-build)
-			deps=$(__conan_complete_receipe_deps $reciepe)
+			deps=$(__conan_complete_receipe_deps $recipe)
 			COMPREPLY=( $( compgen -W "$deps ALL" -- "$cur" ) )
 			return
 			;;
@@ -1007,7 +1007,7 @@ __conan_process_arg_options()
 			;;
 		-a|--attribute)
 			
-			COMPREPLY=( $( compgen -W "$(__conan_reference_attributes $reciepe)" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$(__conan_reference_attributes $recipe)" -- "$cur" ) )
 			return
 			;;
 	esac
@@ -1019,9 +1019,9 @@ __conan_reference_attributes()
 	local attributes="name version url homepage license author description topics generators exports exports_sources short_paths apply_env build_policy revision_mode settings options default_options"	
 
 
-	#TODO : Is it necessary to get attributes from reciepe 
-	if [ ! "$reciepe" == "" ]; then
-		attributes=$(__conan_q inspect "$reciepe" | sed  -rn "s#(^[^ \t:]+)\:.*#\1#p")
+	#TODO : Is it necessary to get attributes from recipe 
+	if [ ! "$recipe" == "" ]; then
+		attributes=$(__conan_q inspect "$recipe" | sed  -rn "s#(^[^ \t:]+)\:.*#\1#p")
 	fi
 
 	echo "$attributes"
@@ -1041,8 +1041,8 @@ __conan_complete_package_options()
 	#Get reference or path to conanfile if already defined
 	if [ ! "$key" == "" ]; then
 		local options=""
-		if [ ! "$reciepe" == "" ]; then
-			options=$(__conan_q inspect "$reciepe" -a options | sed -rn "s# +$key\: \[(.*)\]#\1#p" | sed 's# *, *# #g' )
+		if [ ! "$recipe" == "" ]; then
+			options=$(__conan_q inspect "$recipe" -a options | sed -rn "s# +$key\: \[(.*)\]#\1#p" | sed 's# *, *# #g' )
 		fi
 		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
 		return
@@ -1103,8 +1103,8 @@ _conan_export_pkg() {
 
 	local export_pkg_options_blob=$(__conan_to_extglob $export_pkg_options)
 
-	#Get current reciepe, if defined
-	__conan_get_current_reciepe $export_pkg_options_blob
+	#Get current recipe, if defined
+	__conan_get_current_recipe $export_pkg_options_blob
 
 	# Process arg map options (--opt key=value)
 	__conan_complete_package_options && return
@@ -1158,8 +1158,8 @@ _conan_test() {
 
 	local test_options_blob=$(__conan_to_extglob $test_options)
 
-	#Get current reciepe, if defined
-	__conan_get_current_reciepe $test_options_blob
+	#Get current recipe, if defined
+	__conan_get_current_recipe $test_options_blob
 
 	# Process arg map options (--opt key=value)
 	__conan_complete_package_options && return
@@ -1442,8 +1442,8 @@ _conan_workspace_install()
 	#TODO : complete options & settings for workspace? ...
 	local workspace_install_options_blob=$(__conan_to_extglob $workspace_install_options)
 
-	#Get current reciepe, if defined
-	__conan_get_current_reciepe $workspace_install_options_blob
+	#Get current recipe, if defined
+	__conan_get_current_recipe $workspace_install_options_blob
 
 	# Process arg map options (--opt key=value)
 	__conan_complete_package_options && return
@@ -1794,8 +1794,8 @@ _conan_remote_add_pref()
 			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
 			;;
 		*:*)
-			local reciepe=${cur%:*}
-			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $reciepe)" -- "${cur#*:}" ) )
+			local recipe=${cur%:*}
+			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $recipe)" -- "${cur#*:}" ) )
 			;;
 		*)			
 			if [ "$cword" == "$first" ]; then
@@ -1822,8 +1822,8 @@ _conan_remote_remove_pref()
 			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
 			;;
 		*:*)
-			reciepe=${cur%:*}
-			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $reciepe)" -- "${cur#*:}" ) )
+			recipe=${cur%:*}
+			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $recipe)" -- "${cur#*:}" ) )
 			;;
 		*)			
 			if [ "$cword" == "$first" ]; then
@@ -1942,8 +1942,8 @@ _conan_copy() {
 "
 	local copy_options_blob=$(__conan_to_extglob $copy_options)
 
-	#Get current reciepe, if defined
-	__conan_get_current_reciepe $copy_options_blob
+	#Get current recipe, if defined
+	__conan_get_current_recipe $copy_options_blob
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options $copy_options_blob && return
@@ -1994,8 +1994,8 @@ _conan_remove() {
 "
 	local remove_options_blob=$(__conan_to_extglob $remove_options)
 
-	#Get current reciepe, if defined
-	__conan_get_current_reciepe $remove_options_blob
+	#Get current recipe, if defined
+	__conan_get_current_recipe $remove_options_blob
 
 	#process arg options (--opt=value_opt)
 	case $prev in
@@ -2058,12 +2058,12 @@ _conan_download() {
 	-r
 	--remote
 	-re
-	--reciepe
+	--recipe
 "
 	local download_options_blob=$(__conan_to_extglob $download_options)
 
-	#Get current reciepe, if defined
-	__conan_get_current_reciepe $download_options_blob
+	#Get current recipe, if defined
+	__conan_get_current_recipe $download_options_blob
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options $download_options_blob && return
@@ -2103,8 +2103,8 @@ _conan_inspect() {
 "
 	local inspect_options_blob=$(__conan_to_extglob $inspect_options)
 
-	#Get current reciepe, if defined
-	__conan_get_current_reciepe $inspect_options_blob
+	#Get current recipe, if defined
+	__conan_get_current_recipe $inspect_options_blob
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options $inspect_options_blob && return
@@ -2187,8 +2187,8 @@ _conan() {
 	local top_level_options_with_args="
 	"
 
-	# Get reference or path of reciepe
-	local reciepe=""
+	# Get reference or path of recipe
+	local recipe=""
 	local is_reference=""
 	COMPREPLY=()
 	local cur prev words cword
@@ -2197,7 +2197,7 @@ _conan() {
 	# search subcommand and invoke its handler.
 	# special treatment of some top-level options
 	local command='conan' command_pos=0 subcommand_pos
-    local command_data="$HOME/.conan"
+    	local command_data="$HOME/.conan"
 	local top_level_options=()
 	local counter=1
 	while [ $counter -lt $cword ]; do
