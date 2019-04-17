@@ -1,7 +1,9 @@
 from __future__ import print_function
 import yaml
+import os
 
-f = open('/home/saidani/.conan/settings.yml')
+home=os.getenv('HOME')
+f = open(home+"/.conan/settings.yml")
 yaml_file = yaml.safe_load(f)
 
 

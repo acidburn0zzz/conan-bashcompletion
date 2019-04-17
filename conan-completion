@@ -13,7 +13,7 @@
 #  - filepaths
 #  - configuration items (.conan/conan.conf)
 #  - [TODO] settings
-#  - [TODO] packages id 
+#  - packages id 
 # if the reference is defined, this script provides completion of:
 #  - receipie options and its values (if not 'ANY')
 #  - [TODO] dependencies package for (--build=<packX>)
@@ -1022,7 +1022,6 @@ __conan_reference_attributes()
 	#TODO : Is it necessary to get attributes from reciepe 
 	if [ ! "$reciepe" == "" ]; then
 		attributes=$(__conan_q inspect "$reciepe" | sed  -rn "s#(^[^ \t:]+)\:.*#\1#p")
-		echo attributes
 	fi
 
 	echo "$attributes"
