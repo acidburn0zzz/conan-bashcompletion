@@ -167,7 +167,7 @@ __conan_analyse_command_line() {
 		#is boolean
 		if    [ -n "$boolean_options_blob" ] && eval "case '${words[$counter]}' in $boolean_options_blob) true ;; *) false ;; esac"; then		
 			#Do nothing
-			true
+			cboolean_options+=("${words[$counter]}")
 		#Is it a arg option
 		elif  [ -n "$arg_options_blob" ] && eval "case '${words[$counter]}' in $arg_options_blob) true ;; *) false ;; esac"; then
 			#echo "skip ${words[$counter]}"
@@ -364,16 +364,11 @@ __conan_get_current_recipe()
 }
 
 
-_conan_conan() {
-	case "$prev" in
-		$(__conan_to_extglob "$daemon_options_with_args") )
-			return
-			;;
-	esac
-
+_conan_conan() 
+{
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "$daemon_boolean_options $daemon_options_with_args $top_level_options_with_args --help -h --version -v" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help -h --version -v" -- "$cur" ) )
 			;;
 		*)
 			COMPREPLY=( $( compgen -W "${commands[*]}" -- "$cur" ) )
@@ -1819,9 +1814,14 @@ _conan_remote_rename()
 
 _conan_remote_list_ref()
 {
+	boolean_options="-h --help"
+	arg_options=""
+	map_options=""
+	__conan_build_tmp_options
+	__conan_analyse_command_line
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			[ "$cpos" == "0" ] && COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
 			;;
 	esac
 }
@@ -2263,18 +2263,7 @@ _conan() {
 		help
 	)
 
-	# Options for the conan client that have to be passed to secondary calls to
-	# conan executed by this script.
-	local daemon_boolean_options="
-	"
-	local daemon_options_with_args="
-	"
-
-	# These options are require special treatment when searching the command.
-	local top_level_options_with_args="
-	"
-
-	# Get reference or path of recipe
+	# Options for the current commandline
 	local boolean_options=""
 	local arg_options=""
 	local map_options=""
@@ -2284,6 +2273,7 @@ _conan() {
 	local map_options_blob=""
 	local positional_args=()
 	local cpos=0
+	local cboolean_options=()
 
 
 	local recipe=""
@@ -2307,18 +2297,6 @@ _conan() {
 	local counter=1
 	while [ $counter -lt $cword ]; do
 		case "${words[$counter]}" in
-			$(__conan_to_extglob "$daemon_boolean_options") )
-				local opt=${words[counter]}
-				top_level_options+=($opt)
-				;;
-			$(__conan_to_extglob "$daemon_options_with_args") )
-				local opt=${words[counter]}
-				local arg=${words[++counter]}
-				top_level_options+=($opt $arg)
-				;;
-			$(__conan_to_extglob "$top_level_options_with_args") )
-				(( counter++ ))
-				;;
 			-*)
 				;;
 			=)
