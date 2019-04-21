@@ -144,7 +144,16 @@ __conan_pos_first_nonflag() {
 	__echo $counter
 }
 
+__conan_build_tmp_options()
+{
+	#build patterns
+	boolean_options_blob=$(__conan_make_pattern "$boolean_options")
+	arg_options_blob=$(__conan_make_pattern "$arg_options")
+	map_options_blob=$(__conan_make_pattern "$map_options")
 
+	#useful vars for options
+	total_options="$boolean_options $arg_options $map_options"
+}
 
 
 # This function analyse the command line up to the current word ($cword)
@@ -181,6 +190,8 @@ __conan_analyse_command_line() {
 		fi
 		(( counter++ ))
 	done
+
+	cpos=${#positional_args[*]}
 }
 
 
@@ -984,7 +995,7 @@ __conan_process_arg_options()
 	#TODO : Check if the previous word is on the options command list (aka $1) 
 	if [ -n "$arg_options" ] && eval "case $prev in --json|--remote) false ;; *) true ;; esac"; 		then
 
-		__echo "not in : prev=$prev options=$arg_options"
+		#__echo "not in : prev=$prev options=$arg_options"
 		#option not processed		
 		return 1
 	fi
@@ -1714,17 +1725,6 @@ _conan_remote_clean()
 	esac
 }
 
-__conan_build_tmp_options()
-{
-	#build patterns
-	boolean_options_blob=$(__conan_make_pattern "$boolean_options")
-	arg_options_blob=$(__conan_make_pattern "$arg_options")
-	map_options_blob=$(__conan_make_pattern "$map_options")
-
-	#useful vars for options
-	total_options="$boolean_options $arg_options $map_options"
-}
-
 
 _conan_remote_add() 
 {
@@ -1756,7 +1756,7 @@ _conan_remote_add()
 					[ ! "$1" == "update" ] && COMPREPLY=( "*repo_name*" )
 					;;
 				1)
-					COMPREPLY=( "https://*my_repo*" )
+					COMPREPLY=( $( compgen -W "https://my_repo* http://my_repo*" -- "$cur" ))
 					;;
 				2)
 					COMPREPLY=( $( compgen -W "False True" -- "$cur" ) )
@@ -1773,35 +1773,45 @@ _conan_remote_update()
 
 _conan_remote_remove()
 {
-	local first=$(__conan_pos_first_nonflag "-h|--help")
+	boolean_options="-h --help"
+	arg_options=""
+	map_options=""
+	__conan_build_tmp_options
+	__conan_analyse_command_line
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			[ "$cpos" == "0" ] && COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
 			;;
 		*)
-			if [ "$cword" == "$first" ]; then
-				__conan_complete_remotes
-			fi
-			return
+			case $cpos in
+				0)
+				 	__conan_complete_remotes
+					;;
+			esac
 			;;
 	esac
 }
 
-#TODO : count the number of non arguments in the command line --> build array of non-options
 _conan_remote_rename()
 {
-	local first=$(__conan_pos_first_nonflag "-h|--help")
+	boolean_options="-h --help"
+	arg_options=""
+	map_options=""
+	__conan_build_tmp_options
+	__conan_analyse_command_line
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-h --help" -- "$cur" ) )
+			[ "$cpos" == "0" ] && COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
 			;;
 		*)
-			if [ "$cword" == "$first" ]; then
-				__conan_complete_remotes
-			else
-				COMPREPLY=( "*new_name*" )
-			fi
-			return
+			case $cpos in
+				0)
+				 	__conan_complete_remotes
+					;;
+				1)
+					COMPREPLY=( $( compgen -W "$prev"_new -- "$cur" ) )
+					;;	
+			esac
 			;;
 	esac
 }
@@ -2273,6 +2283,7 @@ _conan() {
 	local arg_options_blob=""
 	local map_options_blob=""
 	local positional_args=()
+	local cpos=0
 
 
 	local recipe=""
