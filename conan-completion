@@ -68,6 +68,8 @@ __conan_to_extglob() {
 	__echo "@($extglob)"
 }
 
+
+
 __conan_make_pattern()
 {
 	__conan_to_alternatives "$1" | __sed 's# +#|#g'
@@ -150,8 +152,14 @@ __conan_build_tmp_options()
 	boolean_options_blob=$(__conan_make_pattern "$boolean_options")
 	arg_options_blob=$(__conan_make_pattern "$arg_options")
 	map_options_blob=$(__conan_make_pattern "$map_options")
-	arg_map_options_blob="$arg_options_blob"
-	[ -n "$map_options_blob" ] && arg_map_options_blob="$arg_map_options_blob|$map_options_blob" 
+	arg_map_options_blob=""
+	if [ -n "$arg_options" ] && [ -n "$map_options" ]; then
+		arg_map_options_blob="$arg_options_blob|$map_options_blob"
+	elif [ -n "$arg_options" ]; then
+		arg_map_options_blob="$arg_options_blob"
+	elif [ -n "$map_options" ]; then
+		arg_map_options_blob="$map_options_blob"
+	fi
 
 	#useful vars for options
 	total_options="$boolean_options $arg_options $map_options"
@@ -170,6 +178,8 @@ __conan_analyse_command_line()
 	local counter=$((${subcommand_pos:-${command_pos}} + 1))
 	#echo "args=$arg_options_blob"
 	while [ "$counter" -le "$cword" ]; do
+		copt=""
+		ckey=""
 		#is boolean
 		if    [ -n "$boolean_options_blob" ] && eval "case '${words[$counter]}' in $boolean_options_blob) true ;; *) false ;; esac"; then		
 			#Do nothing
@@ -183,10 +193,13 @@ __conan_analyse_command_line()
 			[ "${words[$counter]}" = "=" ] && (( counter++ ))
 		#Is it a map option?
 		elif  [ -n "$map_options_blob" ] && eval "case '${words[$counter]}' in $map_options_blob) true ;; *) false ;; esac"; then
+			copt="${words[$counter]}"			
 			(( counter++))
 			[ "${words[$counter]}" = "=" ] && (( counter++ ))
+			ckey="${words[$counter]}"
 			(( counter++ ))
 			[ "${words[$counter]}" = "=" ] && (( counter++ ))
+			#echo "copt=$copt cky=$ckey"
 
 		#Is it a option not defined (should not happen)
 		elif [[ ${words[$counter]} == -* ]]; then
@@ -249,6 +262,13 @@ __conan_map_key_of_current_option() {
 __conan_nospace() {
 	# compopt is not available in ancient bash versions
 	type compopt &>/dev/null && compopt -o nospace
+}
+
+
+__conan_ini_elements()
+{
+	ini_elements=$(awk -F ' *= *' '{ if ($1 ~ /^\[/) section=$1; else if ($1 !~ /^$/) print section $1 }' $CONAN_HOME/$1 | __sed -rn "s#\[(\w+)\](\w+)#\1.\2#p")
+	__echo "$ini_elements"
 }
 
 # Complete numbers
@@ -352,8 +372,9 @@ _conan_complete_reference_options()
 {
 	local options=""
 	if [ ! "$recipe" == "" ]; then
-		options=$(__conan_q inspect "$recipe" -a options | __sed -rn 's# +(\w+)\:.*#\1#p')
+		options=$(__conan_q inspect "$recipe" -a options | __sed -rn 's# +(\w+)\:.*#\1#p')			
 	fi
+	#echo "recipe=$recipe options=$options"
 	COMPREPLY=( $( compgen -W "$options" -S = -- "$cur" ) )
 }
 
@@ -456,36 +477,30 @@ _conan_complete_common_options()
 ###############################################
 _conan_install() 
 {
-	local boolean_options="--help -h -u --update --no-imports"
-	local args_options="-v --verify -pr --profile -r --remote -b --build -e -env -g --generator -j -json -m --manifests -mi --manifests-interactive"
-	local map_options="-o --options -s --settings"
-
-	local install_options_blob=$(__conan_make_pattern "$args_options $map_options")
-
-	#Get current recipe, if defined
-	__conan_get_current_recipe $install_options_blob
+	boolean_options="--help -h -u --update --no-imports"
+	arg_options="-v --verify -pr --profile -r --remote -b --build -e -env -g --generator -j -json -m --manifests -mi --manifests-interactive"
+	map_options="-o --options -s --settings"
+	__conan_analyse_command_line "capture_recipe"
 
 	# Process map options (--opt key=value)
 	__conan_complete_package_options && return
 	__conan_complete_settings_by_key && return
+	__conan_process_arg_options && return
 
-	#process arg options (--opt=value_opt)
-	__conan_process_arg_options $install_options_blob && return
-
-	#Get the first
-	local first=$(__conan_pos_first_nonflag $install_options_blob)
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "$boolean_options $args_options $map_options" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
 			;;
 		*)
-
-			#Get reference or path to conanfile if already defined
-			if [ "$recipe" == "" ]; then
-				__conan_complete_references				
-			else	
-				__conan_complete_references_or_directories
-			fi
+			case $cpos in
+				0)
+				 	__conan_complete_references_or_directories
+					;;
+				1)
+					#TODO : should autocomplete partial references : user/channel, version@user/channel
+					__conan_complete_references
+					;;	
+			esac
 			;;
 	esac
 }
@@ -510,13 +525,6 @@ _conan_config() {
 			;;
 	esac
 }
-
-__conan_ini_elements()
-{
-	ini_elements=$(awk -F ' *= *' '{ if ($1 ~ /^\[/) section=$1; else if ($1 !~ /^$/) print section $1 }' $CONAN_HOME/$1 | __sed -rn "s#\[(\w+)\](\w+)#\1.\2#p")
-	__echo "$ini_elements"
-}
-
 
 _conan_config_get() {
 	case "$cur" in
@@ -1057,7 +1065,7 @@ __conan_process_arg_options()
 			return
 			;;
 		--options|-o)
-			_conan_complete_reference_options $recipe
+			_conan_complete_reference_options
 			__conan_nospace
 			return
 			;;
@@ -1095,6 +1103,10 @@ __conan_process_arg_options()
 			;;
 		-j|--json)
 			_filedir json
+			return
+			;;
+		-v|--verify)
+			_filedir txt
 			return
 			;;
 
@@ -1159,14 +1171,10 @@ __conan_layouts_fast()
 
 __conan_complete_package_options()
 {
-	#Completing map options?
-	local key=$(__conan_map_key_of_current_option '--options|-o')
-
-	#Get reference or path to conanfile if already defined
-	if [ ! "$key" == "" ]; then
+	if [ ! "$ckey" == "" ] && [[ "$copt" == @(--options|-o) ]]; then
 		local options=""
 		if [ ! "$recipe" == "" ]; then
-			options=$(__conan_q inspect "$recipe" -a options | __sed -rn "s# +$key\: \[(.*)\]#\1#p" | __sed 's# *, *# #g' )
+			options=$(__conan_q inspect "$recipe" -a options | __sed -rn "s# +$ckey\: \[(.*)\]#\1#p" | __sed 's# *, *# #g' )
 		fi
 		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
 		return
@@ -1178,13 +1186,9 @@ __conan_complete_package_options()
 
 __conan_complete_settings_by_key()
 {
-	#Completing map options?
-	local key=$(__conan_map_key_of_current_option '--settings|-s')
-
-	#Get reference or path to conanfile if already defined
-	if [ ! "$key" == "" ]; then
+	if [ ! "$ckey" == "" ] && [[ "$copt" == @(--settings|-s) ]]; then
 		local options=""
-		options=$(python parse_settings.py | __sed -rn "s#$key=(.*)#\1#p")
+		options=$(python parse_settings.py | __sed -rn "s#$ckey=(.*)#\1#p")
 		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
 		return
 	fi
@@ -2236,6 +2240,8 @@ _conan() {
 	local positional_args=()
 	local cpos=0
 	local cboolean_options=()
+	local copt=""
+	local ckey=""
 
 
 	local recipe=""
