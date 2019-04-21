@@ -68,6 +68,11 @@ __conan_to_extglob() {
 	__echo "@($extglob)"
 }
 
+__conan_make_pattern()
+{
+	__conan_to_alternatives "$1" | __sed 's# +#|#g'
+}
+
 # Determines whether the option passed as the first argument exist on
 # the commandline. The option may be a pattern, e.g. `--force|-f`.
 __conan_has_option() {
@@ -108,8 +113,10 @@ __conan_subcommands() {
 # Use this function to restrict completions to exact positions after the argument list.
 __conan_pos_first_nonflag() {
 	local argument_flags=$1
+	local from=$2
 
 	local counter=$((${subcommand_pos:-${command_pos}} + 1))
+	[ -n "$from" ] && counter=$((from + 1))
 	while [ "$counter" -le "$cword" ]; do
 		if [ -n "$argument_flags" ] && eval "case '${words[$counter]}' in $argument_flags) true ;; *) false ;; esac"; then
 			(( counter++ ))
@@ -136,6 +143,46 @@ __conan_pos_first_nonflag() {
 
 	__echo $counter
 }
+
+
+
+
+# This function analyse the command line up to the current word ($cword)
+# It needs options command defined ie (boolean_options_blob,arg_options_blob,map_options_blob)
+# It fills positional_args
+__conan_analyse_command_line() {
+	#start after commands or subcommands
+	local counter=$((${subcommand_pos:-${command_pos}} + 1))
+	#echo "args=$arg_options_blob"
+	while [ "$counter" -le "$cword" ]; do
+		#is boolean
+		if    [ -n "$boolean_options_blob" ] && eval "case '${words[$counter]}' in $boolean_options_blob) true ;; *) false ;; esac"; then		
+			#Do nothing
+			true
+		#Is it a arg option
+		elif  [ -n "$arg_options_blob" ] && eval "case '${words[$counter]}' in $arg_options_blob) true ;; *) false ;; esac"; then
+			#echo "skip ${words[$counter]}"
+			# Eat the option
+			(( counter++ ))
+			# eat "=" in case of --option=arg syntax
+			[ "${words[$counter]}" = "=" ] && (( counter++ ))
+		#Is it a map option?
+		elif  [ -n "$map_options_blob" ] && eval "case '${words[$counter]}' in $map_options_blob) true ;; *) false ;; esac"; then
+			(( counter++))
+			[ "${words[$counter]}" = "=" ] && (( counter++ ))
+			(( counter++ ))
+			[ "${words[$counter]}" = "=" ] && (( counter++ ))
+
+		#Is it a option not defined (should not happen)
+		elif [[ ${words[$counter]} == -* ]]; then
+			true
+		else
+			 [ -n "${words[$counter]}" ] && [ "$((counter+1))" -le "$cword"  ] && positional_args+=("$counter")
+		fi
+		(( counter++ ))
+	done
+}
+
 
 # Returns `key` if we are currently completing the value of a map option (`key=value`)
 # which matches the extglob passed in as an argument.
@@ -373,10 +420,6 @@ _conan_complete_common_options()
 	return 1
 }
 
-__conan_from_list_to_glob()
-{
-	__echo "$1" | __sed 's# #|#g'
-}
 ###############################################
 # conan install ...
 ###############################################
@@ -386,7 +429,7 @@ _conan_install()
 	local args_options="-v --verify -pr --profile -r --remote -b --build -e -env -g --generator -j -json -m --manifests -mi --manifests-interactive"
 	local map_options="-o --options -s --settings"
 
-	local install_options_blob=$(__conan_from_list_to_glob "$args_options $map_options")
+	local install_options_blob=$(__conan_make_pattern "$args_options $map_options")
 
 	#Get current recipe, if defined
 	__conan_get_current_recipe $install_options_blob
@@ -396,7 +439,7 @@ _conan_install()
 	__conan_complete_settings_by_key && return
 
 	#process arg options (--opt=value_opt)
-	__conan_process_arg_options  $install_options_blob && return
+	__conan_process_arg_options $install_options_blob && return
 
 	#Get the first
 	local first=$(__conan_pos_first_nonflag $install_options_blob)
@@ -937,9 +980,9 @@ _conan_export() {
 ###  
 __conan_process_arg_options()
 {
-	local arg_options=$1
+	local arg_options="$1"
 	#TODO : Check if the previous word is on the options command list (aka $1) 
-	if false && [ -n "$arg_options" ] && eval "case $prev in $arg_options) false ;; *) true ;; esac"; 		then
+	if [ -n "$arg_options" ] && eval "case $prev in --json|--remote) false ;; *) true ;; esac"; 		then
 
 		__echo "not in : prev=$prev options=$arg_options"
 		#option not processed		
@@ -1135,7 +1178,7 @@ _conan_export_pkg() {
 	__conan_complete_settings_by_key && return
 
 	#process arg options (--opt=value_opt)
-	__conan_process_arg_options  $export_pkg_options_blob && return
+	__conan_process_arg_options  "$export_pkg_options_blob" && return
 
 	#Get the first
 	local first=$(__conan_pos_first_nonflag $export_options_blob)
@@ -1670,17 +1713,27 @@ _conan_remote_clean()
 			;;
 	esac
 }
+
+__conan_build_tmp_options()
+{
+	#build patterns
+	boolean_options_blob=$(__conan_make_pattern "$boolean_options")
+	arg_options_blob=$(__conan_make_pattern "$arg_options")
+	map_options_blob=$(__conan_make_pattern "$map_options")
+
+	#useful vars for options
+	total_options="$boolean_options $arg_options $map_options"
+}
+
+
 _conan_remote_add() 
 {
-	local remote_add_options="-h 
-	--help
-	-i 
-	--insert 
-	-f 
-	--force
-"
-	local remote_add_options_blob=$(__conan_to_extglob $remote_add_options)
-	local first=$(__conan_pos_first_nonflag $remote_add_options_blob)
+	boolean_options="-h --help -f --force"
+	arg_options="-i --insert"
+	map_options=""
+
+	__conan_build_tmp_options
+	__conan_analyse_command_line
 
 	case "$prev" in
 		-i|--insert)
@@ -1693,22 +1746,22 @@ _conan_remote_add()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "$remote_add_options" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
 			;;
 		*)
-
-			#TODO first=remote_name second=http://repo_url third=false
-
-			if [ "$cword" == "$first" ]; then
-				[ "$1" == "update" ] && __conan_complete_remotes
-				[ ! "$1" == "update" ] && COMPREPLY=( "*repo_name*" )
-				
-			else
-				COMPREPLY=( "https://*my_repo*" )
-			fi
-
-			return
-			;;
+			pos=${#positional_args[*]}
+			case $pos in
+				0)
+				 	[ "$1" == "update" ] && __conan_complete_remotes
+					[ ! "$1" == "update" ] && COMPREPLY=( "*repo_name*" )
+					;;
+				1)
+					COMPREPLY=( "https://*my_repo*" )
+					;;
+				2)
+					COMPREPLY=( $( compgen -W "False True" -- "$cur" ) )
+					;;
+			esac
 	esac
 }
 
@@ -2212,6 +2265,16 @@ _conan() {
 	"
 
 	# Get reference or path of recipe
+	local boolean_options=""
+	local arg_options=""
+	local map_options=""
+	local total_options=""
+	local boolean_options_blob=""
+	local arg_options_blob=""
+	local map_options_blob=""
+	local positional_args=()
+
+
 	local recipe=""
 	local is_reference=""
 	COMPREPLY=()
