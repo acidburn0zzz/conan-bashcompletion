@@ -50,7 +50,7 @@ __echo()
 }
 
 __conan_q() {
-	conan 2>/dev/null "${top_level_options[@]}" "$@"
+	conan 2>/dev/null "$@"
 }
 
 # Transforms a multiline list of strings into a single line string
@@ -128,7 +128,6 @@ __conan_analyse_command_line()
 
 	#start after commands or subcommands
 	local counter=$((${subcommand_pos:-${command_pos}} + 1))
-	#echo "args=$arg_options_blob"
 	while [ "$counter" -le "$cword" ]; do
 		copt=""
 		ckey=""
@@ -138,7 +137,6 @@ __conan_analyse_command_line()
 			cboolean_options+=("${words[$counter]}")
 		#Is it a arg option
 		elif  [ -n "$arg_options_blob" ] && eval "case '${words[$counter]}' in $arg_options_blob) true ;; *) false ;; esac"; then
-			#echo "skip ${words[$counter]}"
 			# Eat the option
 			(( counter++ ))
 			# eat "=" in case of --option=arg syntax
@@ -151,7 +149,6 @@ __conan_analyse_command_line()
 			ckey="${words[$counter]}"
 			(( counter++ ))
 			[ "${words[$counter]}" = "=" ] && (( counter++ ))
-			#echo "copt=$copt cky=$ckey"
 
 		#Is it a option not defined (should not happen)
 		elif [[ ${words[$counter]} == -* ]]; then
@@ -209,8 +206,6 @@ __conan_analyse_command_line()
 __conan_process_arg_options()
 {
 	if [ -n "$arg_map_options_blob" ] && eval "case '$prev' in $arg_map_options_blob) false ;; *) true ;; esac"; then
-
-		#__echo "not in : prev=$prev options=$arg_map_options_blob"
 		#option not processed		
 		return 1
 	fi
@@ -317,27 +312,6 @@ __conan_process_arg_options()
 	esac
 	return 1
 }
-
-__conan_process_arg_options_2()
-{
-	local arg_options="$1"
-	#TODO : Check if the previous word is on the options command list (aka $1) 
-	if [ -n "$arg_options" ] && eval "case $prev in --json|--remote) false ;; *) true ;; esac"; 		then
-
-		#__echo "not in : prev=$prev options=$arg_options"
-		#option not processed		
-		return 1
-	fi
-
-	case "$prev" in
-		-l|--layout)
-			COMPREPLY=( $( compgen -W "$(__conan_layouts_fast)" -- "$cur" ) )
-			return
-			;;
-			esac
-	return 1
-}
-
 
 __conan_reference_attributes()
 {
@@ -525,7 +499,6 @@ _conan_complete_reference_options()
 	if [ ! "$recipe" == "" ]; then
 		options=$(__conan_q inspect "$recipe" -a options | __sed -rn 's# +(\w+)\:.*#\1#p')			
 	fi
-	#echo "recipe=$recipe options=$options"
 	COMPREPLY=( $( compgen -W "$options" -S = -- "$cur" ) )
 }
 
@@ -1886,7 +1859,6 @@ _conan() {
 	local CONAN_PROFILES_PATH="$CONAN_HOME/profiles"
 	local CONAN_LAYOUTS_PATH="$CONAN_HOME/layouts"
 	
-	local top_level_options=()
 	local counter=1
 	while [ $counter -lt $cword ]; do
 		case "${words[$counter]}" in
