@@ -22,8 +22,8 @@ below to your .bashrc after bash completion features are loaded
 This script provides completion of:
   * commands, subcommands and its options
   * references names (local only)
-  * remotes
-  * profiles
+  * remotes 
+  * profiles 
   * generators
   * filepaths
   * configuration items (.conan/conan.conf and profiles content)
@@ -54,7 +54,8 @@ This script don't auto-complete :
 	* storage path should be equal to "$CONAN_HOME/data". 
 	if not, you can change the location by redefining the variable "CONAN_STORAGE_PATH"
 	* layouts should be located at $CONAN_HOME/layouts
-	if not, you can change the location by setting this variable "CONAN_LAYOUTS_LOCATION"	
+	if not, you can change the location by setting this variable "CONAN_LAYOUTS_LOCATION"
+* The list of generators is fixed but you can extend it by changing '__conan_complete_generators'	
 
 # License
 
