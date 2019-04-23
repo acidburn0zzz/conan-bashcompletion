@@ -313,6 +313,54 @@ __conan_process_arg_options()
 	return 1
 }
 
+
+__conan_process_non_args()
+{
+	local non_args=($non_arg_options)
+	local non_arg_option=${non_args[$cpos]}
+
+	case $non_arg_option in
+		references|references_or_pattern|partial_references)
+			__conan_complete_references
+			;;
+		references_or_recipe_path)
+			__conan_complete_references_or_directories
+			;;
+		recipe_path)
+			_filedir -d
+			;;
+		remotes)
+			__conan_complete_remotes
+			;;
+		layouts)
+			COMPREPLY=( $( compgen -W "$(__conan_layouts_fast)" -- "$cur" ) )
+			;;
+		profiles)
+			COMPREPLY=( $( compgen -W "$(__conan_profiles_fast)" -- "$cur" ) )
+			;;
+		options_item)
+			;;
+		options_value)
+			;;
+		settings_item)
+			;;
+		settings_value)
+			;;
+		dependencies)
+			;;
+		user_channels)
+			COMPREPLY=( $( compgen -W "$(__conan_user_channel_fast $@)" -- "$cur" ) )
+			;;
+		configuration_item)
+			;;
+		profile_item)
+			;;
+		workspace)
+			_filedir yml
+			;;
+	esac
+}
+
 __conan_reference_attributes()
 {
 	local attributes="name version url homepage license author description topics generators exports exports_sources short_paths apply_env build_policy revision_mode settings options default_options"	
