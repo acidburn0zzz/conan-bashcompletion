@@ -1,6 +1,7 @@
 # conan-bashcompletion
 
 A bash completion for conan
+
 See https://github.com/conan-io/conan
 
 This work is inspired by the docker bash completion script.
@@ -27,8 +28,6 @@ This script provides completion of:
   * generators
   * filepaths
   * configuration items (.conan/conan.conf and profiles content)
-	* conan config get <tab><tab>
-	* conan profile get <tab><tab>
   * settings (needs some improvements)
   * packages id
 
@@ -36,28 +35,52 @@ This script provides completion of:
 This script also provides contextual completion
 if the reference is defined, this script provides completion of:
   - receipie options and its values (if not 'ANY')
-  - dependencies package for (--build=<packX>)
+  - package dependencies 
+
+# FAQ
+
+  - Is my version of conan is supported?
+
+  This completion is tested with conan 1.14 and bash 4.4
+
+    -----------------------------------------
+   |  Supported versions    |  conan  1.14   |
+   |  bash 4.4              |  X             | 
+   -------------------------------------------
+
+   Please bugtrack, if you find an issue
+
+  - I can't complete references, profiles or layouts. What is the problem ?
+
+You should check if your installation of conan is standard.
+If it's not the case redefine the corresponding variables in the script to make available completions
+
+   ----------------------------------------------------------------------------------------------------------------------
+   |  locations                                         |  Default locations         | Variables                        | 
+   |---------------------------------------------------|----------------------------|-----------------------------------|
+   |  root configuration directory                     |  $HOME/.conan              |  CONAN_HOME                       |
+   |  profile directories                              |  $HOME/.conan/profiles     |  CONAN_PROFILES_PATH              |
+   |  layouts directories                              |  $HOME/.conan              |  CONAN_LAYOUTS_LOCATION           |
+   |  data storage where packages are stored           |  $HOME/.conan/data         |  CONAN_STORAGE_PATH               |
+   ----------------------------------------------------------------------------------------------------------------------
+
+Check also known limitations about completions.
+
+ - My custom generator is not suggested. Can I add it?
+
+ Yes, you can extend the generator list by modifiying the function  '__conan_complete_generators'
+
+
 
 # Known limitations
 
-This script is tested with conan 1.14. 
-
 This script don't auto-complete : 
- * Remote packages or recipes. 
+ * Remote packages or references. Only local ressources (profiles, remotes, ...) are used to perform completions for performance considerations 
  * full reference, ie reference:package_id (coming soon)
- * Non standard installation of conan. The installation of conan should follow this layout
-	* The localation of root configuration directory should be at "$HOME/.conan".
-	if not, change the variable "CONAN_HOME" 
-	* profiles should be located at $CONAN_HOME/profiles
-	You can change the default location by setting CONAN_PROFILES_PATH
-	* remotes must be described by this file : $CONAN_HOME/registry.txt
-	* storage path should be equal to "$CONAN_HOME/data". 
-	if not, you can change the location by redefining the variable "CONAN_STORAGE_PATH"
-	* layouts should be located at $CONAN_HOME/layouts
-	if not, you can change the location by setting this variable "CONAN_LAYOUTS_LOCATION"
-* The list of generators is fixed but you can extend it by changing '__conan_complete_generators'	
+ * settings
+ * elements of the current profile (only the default profile is parsed)
 
 # License
 
-Licence MIT can be found [here|LICENSE.md]
+Licence MIT can be found [here](LICENSE.md)
 
