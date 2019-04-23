@@ -313,52 +313,72 @@ __conan_process_arg_options()
 	return 1
 }
 
+_xyz()
+{
+  local cur=${COMP_WORDS[COMP_CWORD]}
+
+  local IFS=$'\n'
+  COMPREPLY=( $( compgen -o plusdirs  -f -X '!*conanfile.py' -- $cur )  )
+}
+
+complete -o filenames -F _xyz xyz
 
 __conan_process_non_args()
 {
 	local non_args=($non_arg_options)
 	local non_arg_option=${non_args[$cpos]}
 
-	case $non_arg_option in
-		references|references_or_pattern|partial_references)
-			__conan_complete_references
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
 			;;
-		references_or_recipe_path)
-			__conan_complete_references_or_directories
-			;;
-		recipe_path)
-			_filedir -d
-			;;
-		remotes)
-			__conan_complete_remotes
-			;;
-		layouts)
-			COMPREPLY=( $( compgen -W "$(__conan_layouts_fast)" -- "$cur" ) )
-			;;
-		profiles)
-			COMPREPLY=( $( compgen -W "$(__conan_profiles_fast)" -- "$cur" ) )
-			;;
-		options_item)
-			;;
-		options_value)
-			;;
-		settings_item)
-			;;
-		settings_value)
-			;;
-		dependencies)
-			;;
-		user_channels)
-			COMPREPLY=( $( compgen -W "$(__conan_user_channel_fast $@)" -- "$cur" ) )
-			;;
-		configuration_item)
-			;;
-		profile_item)
-			;;
-		workspace)
-			_filedir yml
+		*)
+			case $non_arg_option in
+				references|references_or_pattern|partial_references)
+					__conan_complete_references "$@"
+					;;
+				references_or_recipe_path)
+					__conan_complete_references_or_directories "$@"
+					;;
+				recipe_path)
+					_filedir -d "$@"
+					;;
+				path_from_recipe)
+					_filedir 
+				remotes)
+					__conan_complete_remotes "$@"
+					;;
+				layouts)
+					COMPREPLY=( $( compgen -W "$(__conan_layouts_fast)" -- "$cur" ) )
+					;;
+				profiles)
+					COMPREPLY=( $( compgen -W "$(__conan_profiles_fast)" -- "$cur" ) )
+					;;
+				options_item)
+					;;
+				options_value)
+					;;
+				settings_item)
+					;;
+				settings_value)
+					;;
+				dependencies)
+					;;
+				user_channels)
+					COMPREPLY=( $( compgen -W "$(__conan_user_channel_fast $@)" -- "$cur" ) )
+					;;
+				configuration_item)
+					;;
+				profile_item)
+					;;
+				workspace)
+					_filedir yml
+					;;
+			esac
 			;;
 	esac
+
+	
 }
 
 __conan_reference_attributes()
@@ -581,6 +601,7 @@ _conan_install()
 	boolean_options="--help -h -u --update --no-imports"
 	arg_options="-v --verify -pr --profile -r --remote -b --build -e -env -g --generator -j -json -m --manifests -mi --manifests-interactive"
 	map_options="-o --options -s --settings"
+	non_arg_options="references_or_recipe_path partial_references"
 	__conan_analyse_command_line "capture_recipe"
 
 	# Process map options (--opt key=value)
@@ -588,22 +609,7 @@ _conan_install()
 	__conan_complete_settings_by_key && return
 	__conan_process_arg_options && return
 
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)
-			case $cpos in
-				0)
-				 	__conan_complete_references_or_directories
-					;;
-				1)
-					#TODO : should autocomplete partial references : user/channel, version@user/channel
-					__conan_complete_references
-					;;	
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 ###############################################
@@ -700,23 +706,10 @@ _conan_get() {
 	boolean_options="--help -h -raw --raw"
 	arg_options="-r --remote -p --package"
 	map_options=""
+	non_arg_options"references path_from_recipe"
 	__conan_analyse_command_line "capture_recipe"	
 	__conan_process_arg_options && return
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)
-			case $cpos in
-				0)
-					__conan_complete_references
-					;;
-				1)
-					#TODO : complete path from reciepe name/version/user/channel/path0...
-					_filedir 
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 ###############################################
