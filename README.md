@@ -1,21 +1,19 @@
-# conan-bashcompletion
+# Introduction
 
-A bash completion for [conan, the c++ packager](https://github.com/conan-io/conan)
-
+A bash completion for the c++ packager [Conan](https://github.com/conan-io/conan)
 
 This work is inspired by the docker bash completion script.
 
 # Installation
 
 To enable the completions either:
-* place the file 'conan-completion.sh' in 
+* place the file 'conan-completion' in 
     * /etc/bash_completion.d
     * /usr/share/bash-completion/completions
 
 * Or you can copy this file to e.g. ~/.conan-completion and add the line
 below to your .bashrc after bash completion features are loaded
 . ~/.conan-bashcompletion
-
 
 # Features
 
@@ -38,27 +36,21 @@ if the reference is defined, this script provides completion of:
 
 # FAQ
 
-  - Is my version of conan is supported?
+## Is my version of conan is supported?
 
   This completion is tested with conan 1.14 and bash 4.4 but it should work with further versions of conan 
   or other bash versions.
 
   If you find a bug, please bugtrack [here](https://gitlab.com/akim.saidani/conan-bashcompletion/issues)
   
-    -----------------------------------------
-   |  Supported versions    |  conan  1.14   |
-   |  bash 4.4              |  X             | 
-   -------------------------------------------
 
-
-
-  - I can't complete references, profiles or layouts. What can I do?
+## I can't complete references, profiles or layouts. What can I do?
 
 You should check if your installation of conan is standard, ie conan ressources are in default locations. 
 If it's not the case redefine the corresponding variables in the script to enable completions
 
    ----------------------------------------------------------------------------------------------------------------------
-   |  conan ressources                                 |  Default locations         | Variables                         | 
+   |  Conan ressources                                 |  Default locations         | Variables                         | 
    |---------------------------------------------------|----------------------------|-----------------------------------|
    |  root configuration directory                     |  $HOME/.conan              |  CONAN_HOME                       |
    |  profile directories                              |  $HOME/.conan/profiles     |  CONAN_PROFILES_PATH              |
@@ -68,11 +60,9 @@ If it's not the case redefine the corresponding variables in the script to enabl
 
 Check also known limitations about completions such as remote ressouces completion.
 
- - My custom generator is not suggested. Can I add it?
+## My custom generator is not suggested. Can I add it?
 
  Yes, you can extend the generator list by modifiying the function  '__conan_complete_generators'
-
-
 
 # Known limitations
 
@@ -87,4 +77,3 @@ This script don't auto-complete :
 # License
 
 Licence MIT can be found [here](LICENSE.md)
-
