@@ -1,3 +1,19 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [Introduction](#introduction)
+- [Installation](#installation)
+- [Features](#features)
+- [FAQ](#faq)
+  - [Is my version of conan is supported?](#is-my-version-of-conan-is-supported)
+  - [I can't complete references, profiles or layouts. What can I do?](#i-cant-complete-references-profiles-or-layouts-what-can-i-do)
+  - [My custom generator is not suggested. Can I add it?](#my-custom-generator-is-not-suggested-can-i-add-it)
+- [Known limitations](#known-limitations)
+- [License](#license)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # Introduction
 
 A bash completion for the c++ packager [Conan](https://github.com/conan-io/conan)
