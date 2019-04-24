@@ -24,6 +24,7 @@
 #  - copy this file to e.g. ~/.conan-completion and add the line
 #    below to your .bashrc after bash completion features are loaded
 #    . ~/.conan-completion
+ 
 
 __conan_previous_extglob_setting=$(shopt -p extglob)
 shopt -s extglob
@@ -435,7 +436,9 @@ __conan_complete_settings_by_key()
 {
 	if [ ! "$ckey" == "" ] && [[ "$copt" == @(--settings|-s) ]]; then
 		local options=""
-		options=$(python parse_settings.py | __sed -rn "s#$ckey=(.*)#\1#p")
+		__conan_get_settings
+		#options=$(python parse_settings.py | __sed -rn "s#$ckey=(.*)#\1#p")
+		options=$(__echo "$settings" | __sed -rn "s#$ckey=(.*)#\1#p")
 		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
 		return
 	fi
@@ -445,7 +448,9 @@ __conan_complete_settings_by_key()
 __conan_complete_settings()
 {
 	local options=""
-	options=$(python parse_settings.py | __sed -rn "s#([^=]+)=.*#\1#p")
+	__conan_get_settings
+	#options=$(python parse_settings.py | __sed -rn "s#([^=]+)=.*#\1#p")
+	options=$(__echo "$settings" | __sed -rn "s#([^=]+)=.*#\1#p")
 	COMPREPLY=( $( compgen -W "$options" -S = -- "${cur}" ) )
 }
 
@@ -1586,17 +1591,19 @@ _conan() {
 	local cur prev words cword
 	_get_comp_words_by_ref -n : cur prev words cword
 
-	# search subcommand and invoke its handler.
+
 	# special treatment of some top-level options
 	local command='conan' command_pos=0 subcommand_pos
     	local CONAN_HOME="$HOME/.conan"
 
 	#TODO get it from "conan config get storage.path"
 	local CONAN_STORAGE_PATH="$CONAN_HOME/data"
-
 	local CONAN_PROFILES_PATH="$CONAN_HOME/profiles"
 	local CONAN_LAYOUTS_PATH="$CONAN_HOME/layouts"
-	
+
+	local settings
+
+	# search subcommand and invoke its handler.
 	local counter=1
 	while [ $counter -lt $cword ]; do
 		case "${words[$counter]}" in
@@ -1619,6 +1626,40 @@ _conan() {
 
 	eval "$previous_extglob_setting"
 	return 0
+}
+
+
+__conan_get_settings()
+{
+  settings="arch=x86  x86_64  ppc64le  ppc64  armv6  armv7  armv7hf  armv8  sparc  sparcv9  mips  mips64  avr  armv7s  armv7k  
+arch_build=x86  x86_64  ppc64le  ppc64  armv6  armv7  armv7hf  armv8  sparc  sparcv9  mips  mips64  avr  armv7s  armv7k  
+os_target=Windows  Linux  Macos  Android  iOS  watchOS  tvOS  FreeBSD  SunOS  Arduino  
+arch_target=x86  x86_64  ppc64le  ppc64  armv6  armv7  armv7hf  armv8  sparc  sparcv9  mips  mips64  avr  armv7s  armv7k  
+cppstd=None  98  gnu98  11  gnu11  14  gnu14  17  gnu17  20  gnu20  
+os_build=Windows  WindowsStore  Linux  Macos  FreeBSD  SunOS  
+os=Macos  tvOS  SunOS  Arduino  Windows  iOS  watchOS  FreeBSD  Linux  Android  WindowsStore  
+os.version=None  10.6  10.7  10.8  10.9  10.10  10.11  10.12  10.13  10.14  
+os.version=11.0  
+os.board=os.subsystem=None  cygwin  msys  msys2  wsl  
+os.version=7.0  7.1  8.0  8.1  8.2  8.3  9.0  9.1  9.2  9.3  10.0  10.1  10.2  10.3  11.0  
+os.version=4.0  
+os.api_level=os.version=8.1  10.0  
+build_type=None  Debug  Release  RelWithDebInfo  MinSizeRel  
+compiler=sun-cc  gcc  Visual Studio  apple-clang  clang  
+compiler.libcxx=libCstd  libstdcxx  libstlport  libstdc++  
+compiler.version=5.10  5.11  5.12  5.13  5.14  
+compiler.threads=None  posix  
+compiler.libcxx=libstdc++  libstdc++11  
+compiler.version=4.1  4.4  4.5  4.6  4.7  4.8  4.9  5  5.1  5.2  5.3  5.4  5.5  6  6.1  6.2  6.3  6.4  7  7.1  7.2  7.3  8  8.1  8.2  
+compiler.threads=None  posix  win32  
+compiler.exception=None  dwarf2  sjlj  seh  
+compiler.toolset=None  v90  v100  v110  v110_xp  v120  v120_xp  v140  v140_xp  v140_clang_c2  LLVM-vs2012  LLVM-vs2012_xp  LLVM-vs2013  LLVM-vs2013_xp  LLVM-vs2014  LLVM-vs2014_xp  LLVM-vs2017  LLVM-vs2017_xp  v141  v141_xp  v141_clang_c2  
+compiler.runtime=MD  MT  MTd  MDd  
+compiler.version=8  9  10  11  12  14  15  
+compiler.libcxx=libstdc++  libc++  
+compiler.version=5.0  5.1  6.0  6.1  7.0  7.3  8.0  8.1  9.0  9.1  10.0  
+compiler.libcxx=libstdc++  libstdc++11  libc++  
+compiler.version=3.3  3.4  3.5  3.6  3.7  3.8  3.9  4.0  5.0  6.0  7.0  8"
 }
 
 eval "$__conan_previous_extglob_setting"
