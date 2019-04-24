@@ -334,17 +334,19 @@ __conan_process_non_args()
 			;;
 		*)
 			case $non_arg_option in
-				references|references_or_pattern|partial_references)
+				references|references_or_pattern|partial_references|reference_suggestions|reference_aliases)
 					__conan_complete_references "$@"
 					;;
 				references_or_recipe_path)
 					__conan_complete_references_or_directories "$@"
 					;;
-				recipe_path)
+				recipe_path|package_folder)
 					_filedir -d "$@"
 					;;
 				path_from_recipe)
-					_filedir 
+					#TODO : path from $recipe
+					_filedir
+					;; 
 				remotes)
 					__conan_complete_remotes "$@"
 					;;
@@ -368,10 +370,24 @@ __conan_process_non_args()
 					COMPREPLY=( $( compgen -W "$(__conan_user_channel_fast $@)" -- "$cur" ) )
 					;;
 				configuration_item)
+					ini_elements=$(__conan_ini_elements conan.conf)
+					if [ "$1" == "=" ]; then
+						COMPREPLY=( $( compgen -W "$ini_elements" -S = -- "$cur" ) )
+						__conan_nospace
+					else
+						COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
+					fi
 					;;
 				profile_item)
+					ini_elements=$(__conan_ini_elements profiles/default "$1")
+					if [ "$1" == "=" ]; then
+						COMPREPLY=( $( compgen -W "$ini_elements" -S = -- "$cur" ) )
+						__conan_nospace
+					else
+						COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
+					fi
 					;;
-				workspace)
+				workspace_file)
 					_filedir yml
 					;;
 			esac
@@ -637,25 +653,10 @@ _conan_config_get() {
 	boolean_options="--help -h"
 	arg_options=""
 	map_options=""
+	non_arg_options="configuration_item"
 	__conan_analyse_command_line
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)
-			case $cpos in
-				0)
-				 	ini_elements=$(__conan_ini_elements conan.conf)
-					if [ "$1" == "=" ]; then
-						COMPREPLY=( $( compgen -W "$ini_elements" -S = -- "$cur" ) )
-						__conan_nospace
-					else
-						COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
-					fi
-					;;
-			esac
-			;;
-	esac
+	
+	__conan_process_non_args "$1"
 }
 
 _conan_config_rm() {
@@ -706,7 +707,8 @@ _conan_get() {
 	boolean_options="--help -h -raw --raw"
 	arg_options="-r --remote -p --package"
 	map_options=""
-	non_arg_options"references path_from_recipe"
+	non_arg_options="references path_from_recipe"
+
 	__conan_analyse_command_line "capture_recipe"	
 	__conan_process_arg_options && return
 	__conan_process_non_args
@@ -721,6 +723,8 @@ _conan_info() {
                      -n --only --package-filter -db --dry-build	-b --build
                      -e --env -pr --profile -r --remote"
 	map_options="-o --options -s --settings"
+	non_arg_options="references path_from_recipe"
+
 	__conan_analyse_command_line "capture_recipe"
 	case "$prev" in
 		-g|--graph)
@@ -730,22 +734,8 @@ _conan_info() {
 		-*)
 			__conan_process_arg_options && return
 	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)
-			case $cpos in
-				0)
-					__conan_complete_references
-					;;
-				1)
-					#TODO : complete path from reciepe name/version/user/channel/path0...
-					_filedir 
-			esac
-			;;
-	esac
+	
+	__conan_process_non_args
 }
 
 
@@ -758,6 +748,7 @@ _conan_search() {
 	arg_options="-q --query -j --json --table -r --remote
                      -rev --revisions"
 	map_options=""
+	non_arg_options="references_or_patterns"
 	__conan_analyse_command_line "capture_recipe"
 	case "$prev" in
 		-o|--outdated)
@@ -770,18 +761,8 @@ _conan_search() {
 		-*)
 			__conan_process_arg_options && return
 	esac
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)
-			case $cpos in
-				0)
-					__conan_complete_references_or_patterns
-					;; 
-			esac
-			;;
-	esac
+	
+	__conan_process_non_args
 }
 
 
@@ -796,26 +777,14 @@ _conan_new() {
 	-cicco --ci-circleci-osx -gi --gitignore"
 	arg_options="-ciu --ci-upload-url"
 	map_options=""
+	non_arg_options="reference_suggestions"
 	__conan_analyse_command_line 
 	case "$prev" in
 		-ciu|--ci-upload-url)
 			return
 			;;
 	esac
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					#TODO : Suggest names of packages
-					__conan_complete_references
-					;; 
-			esac
-			;;
-	esac
+	__conan_process_non_args 
 }
 
 ###############################################
@@ -828,6 +797,7 @@ _conan_create() {
 	-m --manifests -mi --manifests-interactive -v --verify
 	-b --build -e --env -pr --profile -r --remote"
 	map_options="-o --options -s --settings"
+	non_arg_options="recipe_path partial_references"
 	__conan_analyse_command_line "capture_recipe"
 	
 	__conan_complete_package_options && return
@@ -838,23 +808,8 @@ _conan_create() {
 		-*)
 			__conan_process_arg_options && return
 	esac
-	
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
 
-		*)
-			case $cpos in
-				0)
-					_filedir -d
-					;;
-				1)
-					COMPREPLY=( $( compgen -W "$(__conan_user_channel_fast $@)" -- "$cur" ) )
-					;;	
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 ###############################################
@@ -865,22 +820,11 @@ _conan_upload() {
 	arg_options="-p --package -q --query -r--remote --retry --retry-wait
 	-no --no-overwrite -j --json"
 	map_options=""
+	non_arg_options="references_or_patterns"
 	__conan_analyse_command_line "capture_recipe"
 	__conan_process_arg_options && return
 
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					__conan_complete_references_or_patterns
-					;;	
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 
@@ -892,24 +836,9 @@ _conan_export() {
 	arg_options=""
 	map_options=""
 	__conan_analyse_command_line
+	non_arg_options="recipe_path partial_references"
 
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					_filedir -d
-					;;
-				1)
-					#TODO : complete partial references
-					__conan_complete_partial_references
-					;;	
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 
@@ -921,6 +850,7 @@ _conan_export_pkg() {
 	arg_options="-bf --build-folder -if --install-folder -pf --package-folder
 	 -sf --source-folder -e --env -pr --profile -j --json"
 	map_options="-o --options -s --settings"
+	non_arg_options="recipe_path partial_references"
 	__conan_analyse_command_line "capture_recipe"
 
 	# Process arg map options (--opt key=value)
@@ -931,22 +861,7 @@ _conan_export_pkg() {
 	__conan_process_arg_options  && return
 
 	#process non flags options
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					_filedir -d
-					;;
-				1)
-					__conan_complete_partial_references
-					;;	
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 
@@ -957,6 +872,7 @@ _conan_test() {
 	boolean_options="-h --help -u --update"
 	arg_options="-tbf --test-build-folder -e --env -pr --profile -r --remote -b --build"
 	map_options="-o --options -s --settings"
+	non_arg_options="recipe_path partial_references"
 	__conan_analyse_command_line "capture_recipe"
 
 	# Process arg map options (--opt key=value)
@@ -967,22 +883,7 @@ _conan_test() {
 	__conan_process_arg_options && return
 
 	#process non flags options
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					_filedir -d
-					;;
-				1)
-					__conan_complete_partial_references
-					;;	
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 
@@ -993,25 +894,14 @@ _conan_source() {
 	boolean_options="-h --help"
 	arg_options="-sf --source-folder -if --install-folder"
 	map_options=""
+	non_arg_options="recipe_path"
 	__conan_analyse_command_line "capture_recipe"
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options && return
 
 	#process non flags options
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					_filedir -d
-					;;
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 
@@ -1023,6 +913,7 @@ _conan_build() {
 	boolean_options="-h --help -c --configure -b --build -i --install -t --test"
 	arg_options="-bf --build-folder -sf --source-folder -if --install-folder"
 	map_options=""
+	non_arg_options="recipe_path"
 	__conan_analyse_command_line "capture_recipe"
 
 	#process arg options (--opt=value_opt)
@@ -1037,19 +928,7 @@ _conan_build() {
 	esac
 
 	#process non flags options
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					_filedir -d
-					;;
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 
@@ -1060,6 +939,7 @@ _conan_package() {
 	boolean_options="-h --help"
 	arg_options="-bf --build-folder -sf --source-folder -if --install-folder -pf --package-folder"
 	map_options=""
+	non_arg_options="recipe_path"
 	__conan_analyse_command_line "capture_recipe"
 
 	#process arg options (--opt=value_opt)
@@ -1070,19 +950,7 @@ _conan_package() {
 	esac
 
 	#process non flags options
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					_filedir -d
-					;;
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 
@@ -1113,28 +981,14 @@ _conan_editable_add()
 	boolean_options="-h --help"
 	arg_options="-l --layout"
 	map_options=""
+	non_arg_options="package_folder references"
 	__conan_analyse_command_line
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options && return
 
 	#process non flags options
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					_filedir -d
-					;;
-				1)
-					__conan_complete_references
-					;;
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 _conan_editable_remove() 
@@ -1142,25 +996,14 @@ _conan_editable_remove()
 	boolean_options="-h --help"
 	arg_options=""
 	map_options=""
+	non_arg_options="package_folder references"
 	__conan_analyse_command_line
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options && return
 
 	#process non flags options
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					__conan_complete_references
-					;;
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 _conan_editable_list() 
@@ -1200,6 +1043,7 @@ _conan_workspace_install()
 	boolean_options="-h --help -u --update"
 	arg_options="-b --build -e --env -pr --profile -r --remote"
 	map_options="-o  --options -s --settings"
+	non_arg_options="workspace_file"
 	__conan_analyse_command_line "capture_recipe"
 
 	# Process arg map options (--opt key=value)
@@ -1211,20 +1055,7 @@ _conan_workspace_install()
 	__conan_process_arg_options && return
 
 	#process non flags options
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					#workspace definition file
-					_filedir yml
-					;;
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 
@@ -1268,23 +1099,11 @@ _conan_profile_show()
 	boolean_options="-h --help"
 	arg_options=""
 	map_options=""
+	non_arg_options="profiles"
 	__conan_analyse_command_line
 	
 	#process non flags options
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					#ID : profile_names_or_paths (TODO)
-					COMPREPLY=( $( compgen -W "$(__conan_profiles_fast)" -- "$cur" ) )
-					;;
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 _conan_profile_new() 
@@ -1292,23 +1111,11 @@ _conan_profile_new()
 	boolean_options="-h --help --detect"
 	arg_options=""
 	map_options=""
+	non_arg_options="profiles"
 	__conan_analyse_command_line
 
 	#process non flags options
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					#ID : profile_names_or_paths (TODO)
-					COMPREPLY=( $( compgen -W "$(__conan_profiles_fast)" -- "$cur" ) )
-					;;
-			esac
-			;;
-	esac
+	__conan_process_non_args
 }
 
 
@@ -1317,33 +1124,11 @@ _conan_profile_get()
 	boolean_options="-h --help --detect"
 	arg_options=""
 	map_options=""
+	non_arg_options="profile_item profiles"
 	__conan_analyse_command_line
 
 	#process non flags options
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-
-		*)
-			case $cpos in
-				0)
-					#ID : profile items
-					ini_elements=$(__conan_ini_elements profiles/default "$1")
-					if [ "$1" == "=" ]; then
-						COMPREPLY=( $( compgen -W "$ini_elements" -S = -- "$cur" ) )
-						__conan_nospace
-					else
-						COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
-					fi
-					;;
-				1)
-					#ID : profile_names_or_paths (TODO)
-					COMPREPLY=( $( compgen -W "$(__conan_profiles_fast)" -- "$cur" ) )
-					;;
-			esac
-			;;
-	esac
+	__conan_process_non_args "$@"
 }
 
 
@@ -1420,6 +1205,7 @@ _conan_remote_add()
 	boolean_options="-h --help -f --force"
 	arg_options="-i --insert"
 	map_options=""
+
 	__conan_analyse_command_line
 	__conan_process_arg_options && return
 
@@ -1455,19 +1241,11 @@ _conan_remote_remove()
 	boolean_options="-h --help"
 	arg_options=""
 	map_options=""
+	non_arg_options="remotes"
 	__conan_analyse_command_line
-	case "$cur" in
-		-*)
-			[ "$cpos" == "0" ] && COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)
-			case $cpos in
-				0)
-				 	__conan_complete_remotes
-					;;
-			esac
-			;;
-	esac
+
+	#process non flags options
+	__conan_process_non_args "$@"
 }
 
 _conan_remote_rename()
@@ -1499,12 +1277,10 @@ _conan_remote_list_ref()
 	boolean_options="-h --help"
 	arg_options=""
 	map_options=""
+	non_arg_options=""
 	__conan_analyse_command_line
-	case "$cur" in
-		-*)
-			[ "$cpos" == "0" ] && COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-	esac
+
+	__conan_process_non_args "$@"
 }
 
 
@@ -1513,22 +1289,10 @@ _conan_remote_add_ref()
 	boolean_options="-h --help"
 	arg_options=""
 	map_options=""
+	non_arg_options="references remotes"
 	__conan_analyse_command_line
-	case "$cur" in
-		-*)
-			[ "$cpos" == "0" ] && COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)
-			case $cpos in
-				0)
-				 	__conan_complete_references
-					;;
-				1)
-					__conan_complete_remotes
-					;;	
-			esac
-			;;
-	esac
+	
+	__conan_process_non_args "$@"
 }
 
 _conan_remote_remove_ref()
@@ -1536,19 +1300,10 @@ _conan_remote_remove_ref()
 	boolean_options="-h --help"
 	arg_options=""
 	map_options=""
+	non_arg_options="references"
 	__conan_analyse_command_line
-	case "$cur" in
-		-*)
-			[ "$cpos" == "0" ] && COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)
-			case $cpos in
-				0)
-				 	__conan_complete_references
-					;;	
-			esac
-			;;
-	esac
+
+	__conan_process_non_args "$@"
 }
 
 _conan_remote_update_ref()
@@ -1670,24 +1425,11 @@ _conan_copy()
 	boolean_options="-h --help -all --force"
 	arg_options="-p --package"
 	map_options=""
+	non_arg_options="references user_channels"
 	__conan_analyse_command_line "capture_recipe"
 	__conan_process_arg_options && return
 
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)			
-			case $cpos in
-				0)
-				 	__conan_complete_references
-					;;
-				1)
-					COMPREPLY=( $( compgen -W "$(__conan_user_channel_fast $@)" -- "$cur" ))
-					;;	
-			esac
-			;;
-	esac
+	__conan_process_non_args "$@"
 }
 
 
@@ -1699,12 +1441,13 @@ _conan_remove()
 	boolean_options="-h --help -f --force -l --locks -o --outdated"
 	arg_options="-b --build -q --query -r --remote -s --src -t --system-reqs"
 	map_options=""
+	non_arg_options="references_or_patterns"
 	__conan_analyse_command_line "capture_recipe"
 
 	#process arg options (--opt=value_opt)
 	case $prev in
 		#Can't be handle by process_arg_options function 
-		#because -s stands for --settings
+		#because those options are already reserved (-s --> --settings, ...)
 		-b|--build)
 			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $recipe)" -- "${cur}" ) )
 			;;
@@ -1719,19 +1462,7 @@ _conan_remove()
 			;;
 	esac
 
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)			
-			case $cpos in
-				0)
-					# TODO : complete references_or_pattern
-				 	__conan_complete_references
-					;;
-			esac
-			;;
-	esac
+	__conan_process_non_args "$@"
 }
 
 
@@ -1744,24 +1475,10 @@ _conan_alias()
 	boolean_options="-h --help"
 	arg_options=""
 	map_options=""
+	non_arg_options="reference_aliases references"
 	__conan_analyse_command_line
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)			
-			case $cpos in
-				0)
-					#TODO : This should be an alias				 	
-					__conan_complete_references
-					;;
-				1)
-				 	__conan_complete_references
-					;;
-			esac
-			;;
-	esac
+	
+	__conan_process_non_args "$@"
 }
 
 
@@ -1773,21 +1490,11 @@ _conan_download()
 	boolean_options="-h --help -re --recipe"
 	arg_options="-p --package -r --remote"
 	map_options=""
+	non_arg_options="references"
 	__conan_analyse_command_line "capture_recipe"
 	__conan_process_arg_options && return
 
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)			
-			case $cpos in
-				0)			 	
-					__conan_complete_references
-					;;
-			esac
-			;;
-	esac
+	__conan_process_non_args "$@"
 }
 
 
@@ -1800,21 +1507,11 @@ _conan_inspect()
 	boolean_options="-h --help -re --recipe"
 	arg_options="-a --attribute -r --remote -j --json"
 	map_options=""
+	non_arg_options="references_or_recipe_path"
 	__conan_analyse_command_line "capture_recipe"
 	__conan_process_arg_options && return
 
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)			
-			case $cpos in
-				0)			 	
-					__conan_complete_references_or_directories
-					;;
-			esac
-			;;
-	esac
+	__conan_process_non_args "$@"
 }
 
 
