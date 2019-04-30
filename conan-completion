@@ -29,579 +29,109 @@
 __conan_previous_extglob_setting=$(shopt -p extglob)
 shopt -s extglob
 
-#Ignore errors for commands
-__ls()
-{
-	ls 2>/dev/null "$@"
-}
 
-__sed()
-{
-	sed 2>/dev/null "$@"
-}
+###############################################
+# Main function : entry point of completion
+#   - handlers for calling subcommands
+#   - settings to adapt to you conan installation
+#   - enable/disable tweaks (TODO)
+###############################################
+_conan() {
+	local previous_extglob_setting=$(shopt -p extglob)
+	shopt -s extglob
+	local commands=(
+		install
+		config
+		get
+		info
+		search
+		new
+		create
+		upload
+		export
+		export-pkg
+		test
+		source
+		build
+		package
+		editable
+		workspace
+		profile
+		remote
+		user
+		imports
+		copy
+		remove
+		alias
+		download
+		inspect
+		help
+	)
 
-__cat()
-{
-	cat 2>/dev/null "$@"
-}
-
-__echo()
-{
-	echo 2>/dev/null "$@"
-}
-
-__conan_q() {
-	conan 2>/dev/null "$@"
-}
-
-# Transforms a multiline list of strings into a single line string
-# with the words separated by "|".
-__conan_to_alternatives() {
-	local parts=( $1 )
-	local IFS='|'
-	__echo "${parts[*]}"
-}
-
-# Transforms a multiline list of options into an extglob pattern
-# suitable for use in case statements.
-__conan_to_extglob() {
-	local extglob=$( __conan_to_alternatives "$1" )
-	__echo "@($extglob)"
-}
+	# Options for the current commandline
+	# This variables are set by each command function _conan_<my_command>()
+	local boolean_options=""
+	local arg_options=""
+	local map_options=""
+	local total_options=""
+	local boolean_options_blob=""
+	local arg_options_blob=""
+	local map_options_blob=""
+	local arg_map_options_blob=""
+	local positional_args=()
+	local cpos=0
+	local cboolean_options=()
+	local copt=""
+	local ckey=""
 
 
+	local recipe=""
+	local recipe_type=""
+	local recipe_path=""
+	COMPREPLY=()
+	local cur prev words cword
+	_get_comp_words_by_ref -n : cur prev words cword
 
-__conan_make_pattern()
-{
-	__conan_to_alternatives "$1" | __sed 's#[ \t]+#|#g'
-}
 
+	# special treatment of some top-level options
+	local command='conan' command_pos=0 subcommand_pos
+    	local CONAN_HOME="$HOME/.conan"
 
-# TODO if the preceding command has options that accept arguments and an
-# argument is equal ot one of the subcommands, this is falsely detected as
-# a match.
-__conan_subcommands() {
-	local subcommands="$1"
+	#TODO get it from "conan config get storage.path"
+	local CONAN_STORAGE_PATH="$CONAN_HOME/data"
+	local CONAN_PROFILES_PATH="$CONAN_HOME/profiles"
+	local CONAN_LAYOUTS_PATH="$CONAN_HOME/layouts"
 
-	local counter=$((command_pos + 1))
-	while [ "$counter" -lt "$cword" ]; do
+	local settings
+
+	# search subcommand and invoke its handler.
+	local counter=1
+	while [ $counter -lt $cword ]; do
 		case "${words[$counter]}" in
-			$(__conan_to_extglob "$subcommands") )
-				subcommand_pos=$counter
-				local subcommand=${words[$counter]}
-				local completions_func=_conan_${command}_${subcommand//-/_}
-				declare -F "$completions_func" >/dev/null && "$completions_func"
-				return 0
+			-*)
+				;;
+			=)
+				(( counter++ ))
+				;;
+			*)
+				command="${words[$counter]}"
+				command_pos=$counter
+				break
 				;;
 		esac
 		(( counter++ ))
 	done
-	return 1
+
+	local completions_func=_conan_${command//-/_}
+	declare -F $completions_func >/dev/null && $completions_func
+
+	eval "$previous_extglob_setting"
+	return 0
 }
 
-__conan_build_tmp_options()
-{
-	#build patterns
-	boolean_options_blob=$(__conan_make_pattern "$boolean_options")
-	arg_options_blob=$(__conan_make_pattern "$arg_options")
-	map_options_blob=$(__conan_make_pattern "$map_options")
-	arg_map_options_blob=""
-	if [ -n "$arg_options" ] && [ -n "$map_options" ]; then
-		arg_map_options_blob="$arg_options_blob|$map_options_blob"
-	elif [ -n "$arg_options" ]; then
-		arg_map_options_blob="$arg_options_blob"
-	elif [ -n "$map_options" ]; then
-		arg_map_options_blob="$map_options_blob"
-	fi
-
-	#useful vars for options
-	total_options="$boolean_options $arg_options $map_options"
-}
-
-
-# This function analyse the command line up to the current word ($cword)
-# It needs options command defined ie (boolean_options_blob,arg_options_blob,map_options_blob)
-# It fills positional_args
-__conan_analyse_command_line()
-{
-	#Build temporary options vars
-	__conan_build_tmp_options
-
-	#start after commands or subcommands
-	local counter=$((${subcommand_pos:-${command_pos}} + 1))
-	while [ "$counter" -le "$cword" ]; do
-		copt=""
-		ckey=""
-		#is boolean
-		if    [ -n "$boolean_options_blob" ] && eval "case '${words[$counter]}' in $boolean_options_blob) true ;; *) false ;; esac"; then		
-			#Do nothing
-			cboolean_options+=("${words[$counter]}")
-		#Is it a arg option
-		elif  [ -n "$arg_options_blob" ] && eval "case '${words[$counter]}' in $arg_options_blob) true ;; *) false ;; esac"; then
-			# Eat the option
-			(( counter++ ))
-			# eat "=" in case of --option=arg syntax
-			[ "${words[$counter]}" = "=" ] && (( counter++ ))
-		#Is it a map option?
-		elif  [ -n "$map_options_blob" ] && eval "case '${words[$counter]}' in $map_options_blob) true ;; *) false ;; esac"; then
-			copt="${words[$counter]}"			
-			(( counter++))
-			[ "${words[$counter]}" = "=" ] && (( counter++ ))
-			ckey="${words[$counter]}"
-			(( counter++ ))
-			[ "${words[$counter]}" = "=" ] && (( counter++ ))
-
-		#Is it a option not defined (should not happen)
-		elif [[ ${words[$counter]} == -* ]]; then
-			true
-		else
-			 [ -n "${words[$counter]}" ] && [ "$((counter+1))" -le "$cword"  ] && positional_args+=("$counter")
-		fi
-		(( counter++ ))
-	done
-
-	cpos=${#positional_args[*]}
-
-	#Capture recipe
-	if [[ "$1" == *capture_recipe* ]]; then
-		counter=0
-		while [ "$counter" -le "$cpos" ]; do
-			local current="${words[${positional_args[$counter]}]}"
-			if [[  "$current" == *@* ]]; then
-				recipe="$current"
-				recipe_type="reference"
-				#TODO Check correct recipe : ie recipe in __conan_references
-				break;
-			elif [ -f "$current/conanfile.py" ] || [ -f "$current/conanfile.txt" ]; then
-				recipe="$current"
-				recipe_type="path"
-				break;
-			fi
-			(( counter++ ))
-		done
-	fi
-}
-
-####
-#This function complete options with arguments (--opt=value or --opt value)
-# return "" if value options is currently completed 
-# return 1 otherwise
-# This function complete the followings
-# * queries (-q,--query),
-# * remotes (-r, --remote)
-# * profiles relative options (-pr,--profiles)
-# * package ids (-p,--package)
-# * package environnements variables (-e,--env), 
-# * package options (-o,--options)
-# * package settings(-s,--settings)
-# * package's dependencies  (-b,--build)
-# * generators (-g, --generator)
-# * variuous type of folders 
-#	 - source,build,package and test folder (-sf,--source-folder,-bf,--build-folder, ...)
-#	 - manifest folder (-m|--manifests|-mi|--manifests-interactive)
-#	 - recipe folder 
-# * filepath (--json|-j, --table|-t)
-# * Receipe attributes (-n, --only)
-# * numbers for various reasons (--log-level, --retry-wait, --retry 
-###  
-__conan_process_arg_options()
-{
-	if [ -n "$arg_map_options_blob" ] && eval "case '$prev' in $arg_map_options_blob) false ;; *) true ;; esac"; then
-		#option not processed		
-		return 1
-	fi
-
-	case "$prev" in
-		-i|--insert)
-			#conan remote add
-			local remotes=( $( __conan_remotes_fast ) )
-			local indexes=$(seq 0 1 ${#remotes[@]})
-			COMPREPLY=( $( compgen -W "$indexes" -- "$cur" ) )
-			return
-			;;
-		-l|--layout)
-			COMPREPLY=( $( compgen -W "$(__conan_layouts_fast)" -- "$cur" ) )
-			return
-			;;
-		-p|--package)
-			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $recipe)" -- "$cur" ) )
-			return
-			;;
-		-q|--query)
-			# TODO :__conan_complete_queries
-			;;
-
-		--remote|-r)
-			__conan_complete_remotes
-			return
-			;;
-		--build|-b)
-			deps=$(__conan_complete_receipe_deps $recipe)
-			COMPREPLY=( $( compgen -W "missing outdated always never $deps" "$cur" ) )
-			return
-			;;
-		--profile|-pr)
-			__conan_complete_profiles
-			return
-			;;
-		--env|-e)
-			#TODO FIX
-			COMPREPLY=( $( compgen -W "$cur" ) )
-			return
-			;;
-		--options|-o)
-			_conan_complete_reference_options
-			__conan_nospace
-			return
-			;;
-		--settings|-s)
-			#TODO FIX
-			__conan_complete_settings
-			__conan_nospace
-			return;
-			;;
-		--generator|-g)
-			__conan_complete_generators
-			__conan_nospace
-			return
-			;;
-		--retry|--retry-wait)
-			__conan_complete_number
-			return
-			;;
-		-no)
-			COMPREPLY=( $( compgen -W "all recipe" -- "$cur" ) )
-			return
-			;;
-		-m|--manifests|-mi|--manifests-interactive)
-			_filedir -d
-			return
-			;;
-		-tf|--test-folder|-tbf|--test-build-folder|-bf|--build-folder|-pf|--package-folder|-sf|--source-folder|-if|--install-folder|-imf|--import-folder)
-			_filedir -d
-			return
-			;;
-
-		-t|--table)
-			_filedir html
-			return
-			;;
-		-j|--json)
-			_filedir json
-			return
-			;;
-		-v|--verify)
-			_filedir txt
-			return
-			;;
-
-		--package-filter|-bo|--build-order|-db|--dry-build)
-			deps=$(__conan_complete_receipe_deps $recipe)
-			COMPREPLY=( $( compgen -W "$deps ALL" -- "$cur" ) )
-			return
-			;;
-		-n|--only)
-			local attributes="id build_id remote url license requires update required date author None"
-			COMPREPLY=( $( compgen -W "$attributes" -- "$cur" ) )
-			return
-			;;
-		-a|--attribute)
-			
-			COMPREPLY=( $( compgen -W "$(__conan_reference_attributes $recipe)" -- "$cur" ) )
-			return
-			;;
-	esac
-	return 1
-}
-
-_xyz()
-{
-  local cur=${COMP_WORDS[COMP_CWORD]}
-
-  local IFS=$'\n'
-  COMPREPLY=( $( compgen -o plusdirs  -f -X '!*conanfile.py' -- $cur )  )
-}
-
-complete -o filenames -F _xyz xyz
-
-__conan_process_non_args()
-{
-	local non_args=($non_arg_options)
-	local non_arg_option=${non_args[$cpos]}
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
-			;;
-		*)
-			case $non_arg_option in
-				references|references_or_pattern|partial_references|reference_suggestions|reference_aliases)
-					__conan_complete_references "$@"
-					;;
-				references_or_recipe_path)
-					__conan_complete_references_or_directories "$@"
-					;;
-				recipe_path|package_folder)
-					_filedir -d "$@"
-					;;
-				path_from_recipe)
-					#TODO : path from $recipe
-					_filedir
-					;; 
-				remotes)
-					__conan_complete_remotes "$@"
-					;;
-				layouts)
-					COMPREPLY=( $( compgen -W "$(__conan_layouts_fast)" -- "$cur" ) )
-					;;
-				profiles)
-					COMPREPLY=( $( compgen -W "$(__conan_profiles_fast)" -- "$cur" ) )
-					;;
-				options_item)
-					;;
-				options_value)
-					;;
-				settings_item)
-					;;
-				settings_value)
-					;;
-				dependencies)
-					;;
-				user_channels)
-					COMPREPLY=( $( compgen -W "$(__conan_user_channel_fast $@)" -- "$cur" ) )
-					;;
-				configuration_item)
-					ini_elements=$(__conan_ini_elements conan.conf)
-					if [ "$1" == "=" ]; then
-						COMPREPLY=( $( compgen -W "$ini_elements" -S = -- "$cur" ) )
-						__conan_nospace
-					else
-						COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
-					fi
-					;;
-				profile_item)
-					ini_elements=$(__conan_ini_elements profiles/default "$1")
-					if [ "$1" == "=" ]; then
-						COMPREPLY=( $( compgen -W "$ini_elements" -S = -- "$cur" ) )
-						__conan_nospace
-					else
-						COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
-					fi
-					;;
-				workspace_file)
-					_filedir yml
-					;;
-			esac
-			;;
-	esac
-
-	
-}
-
-__conan_reference_attributes()
-{
-	local attributes="name version url homepage license author description topics generators exports exports_sources short_paths apply_env build_policy revision_mode settings options default_options"	
-
-
-	#TODO : Is it necessary to get attributes from recipe 
-	if [ ! "$recipe" == "" ]; then
-		attributes=$(__conan_q inspect "$recipe" | __sed  -rn "s#(^[^ \t:]+)\:.*#\1#p")
-	fi
-
-	__echo "$attributes"
-}
-
-__conan_layouts_fast()
-{
-	__ls -d1 $CONAN_LAYOUTS_PATH/* | __sed -rn 's#'"$CONAN_LAYOUTS_PATH"'/(.*)#\1#p'
-}
-
-
-__conan_complete_package_options()
-{
-	if [ ! "$ckey" == "" ] && [[ "$copt" == @(--options|-o) ]]; then
-		local options=""
-		if [ ! "$recipe" == "" ]; then
-			options=$(__conan_q inspect "$recipe" -a options | __sed -rn "s# +$ckey\: \[(.*)\]#\1#p" | __sed 's# *, *# #g' )
-		fi
-		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
-		return
-	fi
-	return 1
-}
-
-
-
-__conan_complete_settings_by_key()
-{
-	if [ ! "$ckey" == "" ] && [[ "$copt" == @(--settings|-s) ]]; then
-		local options=""
-		__conan_get_settings
-		#options=$(python parse_settings.py | __sed -rn "s#$ckey=(.*)#\1#p")
-		options=$(__echo "$settings" | __sed -rn "s#$ckey=(.*)#\1#p")
-		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
-		return
-	fi
-	return 1
-}
-
-__conan_complete_settings()
-{
-	local options=""
-	__conan_get_settings
-	#options=$(python parse_settings.py | __sed -rn "s#([^=]+)=.*#\1#p")
-	options=$(__echo "$settings" | __sed -rn "s#([^=]+)=.*#\1#p")
-	COMPREPLY=( $( compgen -W "$options" -S = -- "${cur}" ) )
-}
-
-# suppress trailing whitespace
-__conan_nospace() {
-	# compopt is not available in ancient bash versions
-	type compopt &>/dev/null && compopt -o nospace
-}
-
-
-__conan_complete_receipe_deps()
-{
-	local deps=""
-	if [ ! "$recipe" == "" ]; then
-		deps=$(__conan_q info "$recipe" -n None| __sed -rn 's# *(\w+)/.*#\1#p')
-	fi
-	__echo "$deps"
-}
-
-#read ini elements (profiles or server.conf)
-__conan_ini_elements()
-{
-	ini_elements=$(awk -F ' *= *' '{ if ($1 ~ /^\[/) section=$1; else if ($1 !~ /^$/) print section $1 }' $CONAN_HOME/$1 | __sed -rn "s#\[(\w+)\](\w+)#\1.\2#p")
-	__echo "$ini_elements"
-}
-
-# Complete numbers
-__conan_complete_number() {
-			COMPREPLY=( $( compgen -W "1 2 3 4 5 6 7 8 9 0" -- "" ) )
-			__conan_nospace
-}
-
-# Outputs a list of all references, regardless of their running state.
-# Arguments for `conan ps` may be passed in order to filter the reference list,
-# e.g. `--query` `--remote` .
-__conan_references() {
-	__conan_q search --raw "$@"
-}
-
-
-__conan_references_fast(){
-	__ls -d1 $CONAN_STORAGE_PATH/*/*/*/*/ | __sed -rn 's#'"$CONAN_STORAGE_PATH"'/(.*)/(.*)/(.*)/(.*)/#\1/\2@\3/\4#p'
-}
-
-__conan_packages_fast(){
-case $recipe in 
-    */*@*/*)
-	recipe_path=$(__echo $recipe | __sed 's#@#/#g')
-	__ls -d1 $CONAN_STORAGE_PATH/$recipe_path/package/*/ | __sed -rn 's#'"$CONAN_STORAGE_PATH"'/'"$recipe_path"'/package/(.*)/#\1#p'
-	return
-	;;
-     *)
-	__ls -d1 $CONAN_STORAGE_PATH/*/*/*/*/package/*/ | __sed -rn 's#'"$CONAN_STORAGE_PATH"'/.*/.*/.*/.*/package/(.*)/#\1#p'
-	;;
-esac
-}
-
-__conan_user_channel_fast(){
-	__ls -d1 $CONAN_STORAGE_PATH/*/*/*/*/ | __sed -rn 's#'"$CONAN_STORAGE_PATH"'/(.*)/(.*)/(.*)/(.*)/#\3/\4#p'
-}
-
-# Applies completion of references based on the current value of `$cur`.
-# Arguments for `conan search --raw` may be passed in order to filter the references list,
-# see `__conan_references`.
-__conan_complete_references() {
-	COMPREPLY=( $(compgen -W "$(__conan_references_fast "$@")" -- "$cur") )
-}
-
-__conan_complete_references_or_directories() {
-	COMPREPLY=( $(compgen -d -W "$(__conan_references_fast "$@")" -- "$cur") )
-}
-
-#TODO : suggest patterns
-__conan_complete_references_or_patterns() {
-	__conan_complete_references "$@"
-}
-
-#TODO : complete partial references
-__conan_complete_partial_references()
-{
-	__conan_complete_references "$@"
-}
-__conan_remotes(){
-	__conan_q remote list --raw | awk '{ print $1 }'
-}
-
-__conan_remotes_fast(){
-	__cat $CONAN_HOME/registry.json | __sed -rn 's#"name".*"(.*)"#\1#p' 
-}
-
-# Applies completion of remotes based on the current value of `$cur`.
-# Arguments for `conan search --raw` may be passed in order to filter the references list,
-# see `__conan_remotes`.
-__conan_complete_remotes() {
-	COMPREPLY=( $(compgen -W "$(__conan_remotes_fast "$@")" -- "$cur") )
-}
-
-
-# Applies completion of generators based on the current value of `$cur`.
-# Arguments for `conan search --raw` may be passed in order to filter the references list,
-# see `__conan_remotes`.
-__conan_complete_generators() {
-	COMPREPLY=( $( compgen -W "
-		cmake
-		cmake_multi
-		cmake_paths
-		cmake_find_package
-		cmake_find_package_multi
-		visual_studio
-		visual_studio_multi
-		visual_studio_legacy
-		xcode
-		compiler_args
-		gcc
-		Boost Build
-		B2
-		qbs
-		qmake
-		scons
-		pkg_config
-		virtualenv
-		virtualbuildenv
-		virtualrunenv
-		youcompleteme
-		txt
-		json
-		premake
-		make
-	" -- "$cur" ) )
-}
-
-_conan_complete_reference_options()
-{
-	local options=""
-	if [ ! "$recipe" == "" ]; then
-		options=$(__conan_q inspect "$recipe" -a options | __sed -rn 's# +(\w+)\:.*#\1#p')			
-	fi
-	COMPREPLY=( $( compgen -W "$options" -S = -- "$cur" ) )
-}
-
-__conan_profiles_fast() {
-	__ls -d1 $CONAN_PROFILES_PATH/* | __sed -rn 's#'"$CONAN_PROFILES_PATH"'/(.*)#\1#p'
-}
-
-# Applies completion of profiles based on the current value of `$cur`.
-# Arguments for `conan search --raw` may be passed in order to filter the references list,
-# see `__conan_profiles`.
-__conan_complete_profiles() {
-	COMPREPLY=( $(compgen -W "$(__conan_profiles_fast "$@")" -- "$cur") ) 
-}
-
+###############################################
+# conan ... (complete toplevel options)
+###############################################
 _conan_conan() 
 {
 	case "$cur" in
@@ -1535,97 +1065,591 @@ _conan_help()
 	esac
 }
 
-#Main function
-_conan() {
-	local previous_extglob_setting=$(shopt -p extglob)
-	shopt -s extglob
-	local commands=(
-		install
-		config
-		get
-		info
-		search
-		new
-		create
-		upload
-		export
-		export-pkg
-		test
-		source
-		build
-		package
-		editable
-		workspace
-		profile
-		remote
-		user
-		imports
-		copy
-		remove
-		alias
-		download
-		inspect
-		help
-	)
 
-	# Options for the current commandline
-	# This variables are set by each command function _conan_<my_command>()
-	local boolean_options=""
-	local arg_options=""
-	local map_options=""
-	local total_options=""
-	local boolean_options_blob=""
-	local arg_options_blob=""
-	local map_options_blob=""
-	local arg_map_options_blob=""
-	local positional_args=()
-	local cpos=0
-	local cboolean_options=()
-	local copt=""
-	local ckey=""
+#######################################################################
+# 		HELPERS FUNCTIONS
+#######################################################################
+
+#Ignore errors for commands
+__ls()
+{
+	ls 2>/dev/null "$@"
+}
+
+__sed()
+{
+	sed 2>/dev/null "$@"
+}
+
+__cat()
+{
+	cat 2>/dev/null "$@"
+}
+
+__echo()
+{
+	echo 2>/dev/null "$@"
+}
+
+__conan_q() {
+	conan 2>/dev/null "$@"
+}
+
+# Transforms a multiline list of strings into a single line string
+# with the words separated by "|".
+__conan_to_alternatives() {
+	local parts=( $1 )
+	local IFS='|'
+	__echo "${parts[*]}"
+}
+
+# Transforms a multiline list of options into an extglob pattern
+# suitable for use in case statements.
+__conan_to_extglob() {
+	local extglob=$( __conan_to_alternatives "$1" )
+	__echo "@($extglob)"
+}
 
 
-	local recipe=""
-	local is_reference=""
-	COMPREPLY=()
-	local cur prev words cword
-	_get_comp_words_by_ref -n : cur prev words cword
+
+__conan_make_pattern()
+{
+	__conan_to_alternatives "$1" | __sed 's#[ \t]+#|#g'
+}
 
 
-	# special treatment of some top-level options
-	local command='conan' command_pos=0 subcommand_pos
-    	local CONAN_HOME="$HOME/.conan"
+# TODO if the preceding command has options that accept arguments and an
+# argument is equal ot one of the subcommands, this is falsely detected as
+# a match.
+__conan_subcommands() {
+	local subcommands="$1"
 
-	#TODO get it from "conan config get storage.path"
-	local CONAN_STORAGE_PATH="$CONAN_HOME/data"
-	local CONAN_PROFILES_PATH="$CONAN_HOME/profiles"
-	local CONAN_LAYOUTS_PATH="$CONAN_HOME/layouts"
-
-	local settings
-
-	# search subcommand and invoke its handler.
-	local counter=1
-	while [ $counter -lt $cword ]; do
+	local counter=$((command_pos + 1))
+	while [ "$counter" -lt "$cword" ]; do
 		case "${words[$counter]}" in
-			-*)
-				;;
-			=)
-				(( counter++ ))
-				;;
-			*)
-				command="${words[$counter]}"
-				command_pos=$counter
-				break
+			$(__conan_to_extglob "$subcommands") )
+				subcommand_pos=$counter
+				local subcommand=${words[$counter]}
+				local completions_func=_conan_${command}_${subcommand//-/_}
+				declare -F "$completions_func" >/dev/null && "$completions_func"
+				return 0
 				;;
 		esac
 		(( counter++ ))
 	done
+	return 1
+}
 
-	local completions_func=_conan_${command//-/_}
-	declare -F $completions_func >/dev/null && $completions_func
+__conan_build_tmp_options()
+{
+	#build patterns
+	boolean_options_blob=$(__conan_make_pattern "$boolean_options")
+	arg_options_blob=$(__conan_make_pattern "$arg_options")
+	map_options_blob=$(__conan_make_pattern "$map_options")
+	arg_map_options_blob=""
+	if [ -n "$arg_options" ] && [ -n "$map_options" ]; then
+		arg_map_options_blob="$arg_options_blob|$map_options_blob"
+	elif [ -n "$arg_options" ]; then
+		arg_map_options_blob="$arg_options_blob"
+	elif [ -n "$map_options" ]; then
+		arg_map_options_blob="$map_options_blob"
+	fi
 
-	eval "$previous_extglob_setting"
-	return 0
+	#useful vars for options
+	total_options="$boolean_options $arg_options $map_options"
+}
+
+
+# This function analyse the command line up to the current word ($cword)
+# Command options must be defined ie (boolean_options_blob,arg_options_blob,map_options_blob)
+# It captures positionnial arguments (positional_args=(3 4) --> third and fourth word are positional args) 
+# $cpos is the index of current positionial args
+# Optionnially you can capture the recipe 		
+__conan_analyse_command_line()
+{
+	#Build temporary options vars
+	__conan_build_tmp_options
+
+	#start after commands or subcommands
+	local counter=$((${subcommand_pos:-${command_pos}} + 1))
+	while [ "$counter" -le "$cword" ]; do
+		copt=""
+		ckey=""
+		#is boolean
+		if    [ -n "$boolean_options_blob" ] && eval "case '${words[$counter]}' in $boolean_options_blob) true ;; *) false ;; esac"; then		
+			#Do nothing
+			cboolean_options+=("${words[$counter]}")
+		#Is it a arg option
+		elif  [ -n "$arg_options_blob" ] && eval "case '${words[$counter]}' in $arg_options_blob) true ;; *) false ;; esac"; then
+			# Eat the option
+			(( counter++ ))
+			# eat "=" in case of --option=arg syntax
+			[ "${words[$counter]}" = "=" ] && (( counter++ ))
+		#Is it a map option?
+		elif  [ -n "$map_options_blob" ] && eval "case '${words[$counter]}' in $map_options_blob) true ;; *) false ;; esac"; then
+			copt="${words[$counter]}"			
+			(( counter++))
+			[ "${words[$counter]}" = "=" ] && (( counter++ ))
+			ckey="${words[$counter]}"
+			(( counter++ ))
+			[ "${words[$counter]}" = "=" ] && (( counter++ ))
+
+		#Is it a option not defined (should not happen)
+		elif [[ ${words[$counter]} == -* ]]; then
+			true
+		else
+			 [ -n "${words[$counter]}" ] && [ "$((counter+1))" -le "$cword"  ] && positional_args+=("$counter")
+		fi
+		(( counter++ ))
+	done
+
+	cpos=${#positional_args[*]}
+
+	#Capture recipe
+	if [[ "$1" == *capture_recipe* ]]; then
+		counter=0
+		while [ "$counter" -le "$cpos" ]; do
+			local current="${words[${positional_args[$counter]}]}"
+			if [[  "$current" == *@* ]]; then
+				recipe="$current"
+				recipe_type="reference"
+				recipe_path="$CONAN_STORAGE_PATH/"$(__echo "$recipe" | __sed 's#@#/#g') 
+			else
+				recipe="$current"
+				recipe_type="path"
+				recipe_path=$recipe
+			fi
+			#Check recipe path
+			if [[ "$recipe_path" == *conanfile* ]]; then
+				[ -f "$recipe_path" ] && break
+			else
+				[ -f "$recipe_path/conanfile.txt" ] && break
+				[ -f "$recipe_path/conanfile.py" ] && break
+			fi
+			recipe=""
+			(( counter++ ))
+		done
+	fi
+}
+
+####
+#This function complete options with arguments (--opt=value or --opt value)
+# return "" if value options is currently completed 
+# return 1 otherwise
+# This function complete the followings
+# * queries (-q,--query),
+# * remotes (-r, --remote)
+# * profiles relative options (-pr,--profiles)
+# * package ids (-p,--package)
+# * package environnements variables (-e,--env), 
+# * package options (-o,--options)
+# * package settings(-s,--settings)
+# * package's dependencies  (-b,--build)
+# * generators (-g, --generator)
+# * variuous type of folders 
+#	 - source,build,package and test folder (-sf,--source-folder,-bf,--build-folder, ...)
+#	 - manifest folder (-m|--manifests|-mi|--manifests-interactive)
+#	 - recipe folder 
+# * filepath (--json|-j, --table|-t)
+# * Receipe attributes (-n, --only)
+# * numbers for various reasons (--log-level, --retry-wait, --retry 
+###  
+__conan_process_arg_options()
+{
+	if [ -n "$arg_map_options_blob" ] && eval "case '$prev' in $arg_map_options_blob) false ;; *) true ;; esac"; then
+		#option not processed		
+		return 1
+	fi
+
+	case "$prev" in
+		-i|--insert)
+			#conan remote add
+			local remotes=( $( __conan_remotes_fast ) )
+			local indexes=$(seq 0 1 ${#remotes[@]})
+			COMPREPLY=( $( compgen -W "$indexes" -- "$cur" ) )
+			return
+			;;
+		-l|--layout)
+			COMPREPLY=( $( compgen -W "$(__conan_layouts_fast)" -- "$cur" ) )
+			return
+			;;
+		-p|--package)
+			COMPREPLY=( $( compgen -W "$(__conan_packages_fast $recipe)" -- "$cur" ) )
+			return
+			;;
+		-q|--query)
+			# TODO :__conan_complete_queries
+			;;
+
+		--remote|-r)
+			__conan_complete_remotes
+			return
+			;;
+		--build|-b)
+			deps=$(__conan_complete_receipe_deps $recipe)
+			COMPREPLY=( $( compgen -W "missing outdated always never $deps" "$cur" ) )
+			return
+			;;
+		--profile|-pr)
+			__conan_complete_profiles
+			return
+			;;
+		--env|-e)
+			#TODO FIX
+			COMPREPLY=( $( compgen -W "$cur" ) )
+			return
+			;;
+		--options|-o)
+			_conan_complete_reference_options
+			__conan_nospace
+			return
+			;;
+		--settings|-s)
+			#TODO FIX
+			__conan_complete_settings
+			__conan_nospace
+			return;
+			;;
+		--generator|-g)
+			__conan_complete_generators
+			__conan_nospace
+			return
+			;;
+		--retry|--retry-wait)
+			__conan_complete_number
+			return
+			;;
+		-no)
+			COMPREPLY=( $( compgen -W "all recipe" -- "$cur" ) )
+			return
+			;;
+		-m|--manifests|-mi|--manifests-interactive)
+			_filedir -d
+			return
+			;;
+		-tf|--test-folder|-tbf|--test-build-folder|-bf|--build-folder|-pf|--package-folder|-sf|--source-folder|-if|--install-folder|-imf|--import-folder)
+			_filedir -d
+			return
+			;;
+
+		-t|--table)
+			_filedir html
+			return
+			;;
+		-j|--json)
+			_filedir json
+			return
+			;;
+		-v|--verify)
+			_filedir txt
+			return
+			;;
+
+		--package-filter|-bo|--build-order|-db|--dry-build)
+			deps=$(__conan_complete_receipe_deps $recipe)
+			COMPREPLY=( $( compgen -W "$deps ALL" -- "$cur" ) )
+			return
+			;;
+		-n|--only)
+			local attributes="id build_id remote url license requires update required date author None"
+			COMPREPLY=( $( compgen -W "$attributes" -- "$cur" ) )
+			return
+			;;
+		-a|--attribute)
+			
+			COMPREPLY=( $( compgen -W "$(__conan_reference_attributes $recipe)" -- "$cur" ) )
+			return
+			;;
+	esac
+	return 1
+}
+
+_xyz()
+{
+  local cur=${COMP_WORDS[COMP_CWORD]}
+
+  local IFS=$'\n'
+  COMPREPLY=( $( compgen -o plusdirs  -f -X '!*conanfile.py' -- $cur )  )
+}
+
+complete -o filenames -F _xyz xyz
+
+__conan_process_non_args()
+{
+	local non_args=($non_arg_options)
+	local non_arg_option=${non_args[$cpos]}
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
+			;;
+		*)
+			case $non_arg_option in
+				references|references_or_patterns|partial_references|reference_suggestions|reference_aliases)
+					__conan_complete_references "$@"
+					;;
+				references_or_recipe_path)
+					__conan_complete_references_or_directories "$@"
+					;;
+				recipe_path|package_folder)
+					_filedir -d "$@"
+					;;
+				path_from_recipe)
+					#TODO : path from $recipe
+					_filedir
+					;; 
+				remotes)
+					__conan_complete_remotes "$@"
+					;;
+				layouts)
+					COMPREPLY=( $( compgen -W "$(__conan_layouts_fast)" -- "$cur" ) )
+					;;
+				profiles)
+					COMPREPLY=( $( compgen -W "$(__conan_profiles_fast)" -- "$cur" ) )
+					;;
+				options_item)
+					;;
+				options_value)
+					;;
+				settings_item)
+					;;
+				settings_value)
+					;;
+				dependencies)
+					;;
+				user_channels)
+					COMPREPLY=( $( compgen -W "$(__conan_user_channel_fast $@)" -- "$cur" ) )
+					;;
+				configuration_item)
+					ini_elements=$(__conan_ini_elements conan.conf)
+					if [ "$1" == "=" ]; then
+						COMPREPLY=( $( compgen -W "$ini_elements" -S = -- "$cur" ) )
+						__conan_nospace
+					else
+						COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
+					fi
+					;;
+				profile_item)
+					ini_elements=$(__conan_ini_elements profiles/default "$1")
+					if [ "$1" == "=" ]; then
+						COMPREPLY=( $( compgen -W "$ini_elements" -S = -- "$cur" ) )
+						__conan_nospace
+					else
+						COMPREPLY=( $( compgen -W "$ini_elements" -- "$cur" ) )
+					fi
+					;;
+				workspace_file)
+					_filedir yml
+					;;
+			esac
+			;;
+	esac
+
+	
+}
+
+__conan_reference_attributes()
+{
+	local attributes="name version url homepage license author description topics generators exports exports_sources short_paths apply_env build_policy revision_mode settings options default_options"	
+
+
+	#TODO : Is it necessary to get attributes from recipe 
+	if [ ! "$recipe" == "" ]; then
+		attributes=$(__conan_q inspect "$recipe" | __sed  -rn "s#(^[^ \t:]+)\:.*#\1#p")
+	fi
+
+	__echo "$attributes"
+}
+
+__conan_layouts_fast()
+{
+	__ls -d1 $CONAN_LAYOUTS_PATH/* | __sed -rn 's#'"$CONAN_LAYOUTS_PATH"'/(.*)#\1#p'
+}
+
+
+__conan_complete_package_options()
+{
+	if [ ! "$ckey" == "" ] && [[ "$copt" == @(--options|-o) ]]; then
+		local options=""
+		if [ ! "$recipe" == "" ]; then
+			options=$(__conan_q inspect "$recipe" -a options | __sed -rn "s# +$ckey\: \[(.*)\]#\1#p" | __sed 's# *, *# #g' )
+		fi
+		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
+		return
+	fi
+	return 1
+}
+
+
+
+__conan_complete_settings_by_key()
+{
+	if [ ! "$ckey" == "" ] && [[ "$copt" == @(--settings|-s) ]]; then
+		local options=""
+		__conan_get_settings
+		#options=$(python parse_settings.py | __sed -rn "s#$ckey=(.*)#\1#p")
+		options=$(__echo "$settings" | __sed -rn "s#$ckey=(.*)#\1#p")
+		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
+		return
+	fi
+	return 1
+}
+
+__conan_complete_settings()
+{
+	local options=""
+	__conan_get_settings
+	#options=$(python parse_settings.py | __sed -rn "s#([^=]+)=.*#\1#p")
+	options=$(__echo "$settings" | __sed -rn "s#([^=]+)=.*#\1#p")
+	COMPREPLY=( $( compgen -W "$options" -S = -- "${cur}" ) )
+}
+
+# suppress trailing whitespace
+__conan_nospace() {
+	# compopt is not available in ancient bash versions
+	type compopt &>/dev/null && compopt -o nospace
+}
+
+
+__conan_complete_receipe_deps()
+{
+	local deps=""
+	if [ ! "$recipe" == "" ]; then
+		deps=$(__conan_q info "$recipe" -n None| __sed -rn 's# *(\w+)/.*#\1#p')
+	fi
+	__echo "$deps"
+}
+
+#read ini elements (profiles or server.conf)
+__conan_ini_elements()
+{
+	ini_elements=$(awk -F ' *= *' '{ if ($1 ~ /^\[/) section=$1; else if ($1 !~ /^$/) print section $1 }' $CONAN_HOME/$1 | __sed -rn "s#\[(\w+)\](\w+)#\1.\2#p")
+	__echo "$ini_elements"
+}
+
+# Complete numbers
+__conan_complete_number() {
+			COMPREPLY=( $( compgen -W "1 2 3 4 5 6 7 8 9 0" -- "" ) )
+			__conan_nospace
+}
+
+# Outputs a list of all references, regardless of their running state.
+# Arguments for `conan ps` may be passed in order to filter the reference list,
+# e.g. `--query` `--remote` .
+__conan_references() {
+	__conan_q search --raw "$@"
+}
+
+
+__conan_references_fast(){
+	__ls -d1 $CONAN_STORAGE_PATH/*/*/*/*/ | __sed -rn 's#'"$CONAN_STORAGE_PATH"'/(.*)/(.*)/(.*)/(.*)/#\1/\2@\3/\4#p'
+}
+
+__conan_packages_fast(){
+case $recipe in 
+    */*@*/*)
+	recipe_path=$(__echo $recipe | __sed 's#@#/#g')
+	__ls -d1 $CONAN_STORAGE_PATH/$recipe_path/package/*/ | __sed -rn 's#'"$CONAN_STORAGE_PATH"'/'"$recipe_path"'/package/(.*)/#\1#p'
+	return
+	;;
+     *)
+	__ls -d1 $CONAN_STORAGE_PATH/*/*/*/*/package/*/ | __sed -rn 's#'"$CONAN_STORAGE_PATH"'/.*/.*/.*/.*/package/(.*)/#\1#p'
+	;;
+esac
+}
+
+__conan_user_channel_fast(){
+	__ls -d1 $CONAN_STORAGE_PATH/*/*/*/*/ | __sed -rn 's#'"$CONAN_STORAGE_PATH"'/(.*)/(.*)/(.*)/(.*)/#\3/\4#p'
+}
+
+# Applies completion of references based on the current value of `$cur`.
+# Arguments for `conan search --raw` may be passed in order to filter the references list,
+# see `__conan_references`.
+__conan_complete_references() {
+	COMPREPLY=( $(compgen -W "$(__conan_references_fast "$@")" -- "$cur") )
+}
+
+__conan_complete_references_or_directories() {
+	COMPREPLY=( $(compgen -d -W "$(__conan_references_fast "$@")" -- "$cur") )
+}
+
+#TODO : suggest patterns
+__conan_complete_references_or_patterns() {
+	__conan_complete_references "$@"
+}
+
+#TODO : complete partial references
+__conan_complete_partial_references()
+{
+	__conan_complete_references "$@"
+}
+__conan_remotes(){
+	__conan_q remote list --raw | awk '{ print $1 }'
+}
+
+__conan_remotes_fast(){
+	__cat $CONAN_HOME/registry.json | __sed -rn 's#"name".*"(.*)"#\1#p' 
+}
+
+# Applies completion of remotes based on the current value of `$cur`.
+# Arguments for `conan search --raw` may be passed in order to filter the references list,
+# see `__conan_remotes`.
+__conan_complete_remotes() {
+	COMPREPLY=( $(compgen -W "$(__conan_remotes_fast "$@")" -- "$cur") )
+}
+
+
+# Applies completion of generators based on the current value of `$cur`.
+# Arguments for `conan search --raw` may be passed in order to filter the references list,
+# see `__conan_remotes`.
+__conan_complete_generators() {
+	COMPREPLY=( $( compgen -W "
+		cmake
+		cmake_multi
+		cmake_paths
+		cmake_find_package
+		cmake_find_package_multi
+		visual_studio
+		visual_studio_multi
+		visual_studio_legacy
+		xcode
+		compiler_args
+		gcc
+		Boost Build
+		B2
+		qbs
+		qmake
+		scons
+		pkg_config
+		virtualenv
+		virtualbuildenv
+		virtualrunenv
+		youcompleteme
+		txt
+		json
+		premake
+		make
+	" -- "$cur" ) )
+}
+
+_conan_complete_reference_options()
+{
+	local options=""
+	if [ ! "$recipe" == "" ]; then
+		options=$(__conan_q inspect "$recipe" -a options | __sed -rn 's# +(\w+)\:.*#\1#p')			
+	fi
+	COMPREPLY=( $( compgen -W "$options" -S = -- "$cur" ) )
+}
+
+__conan_profiles_fast() {
+	__ls -d1 $CONAN_PROFILES_PATH/* | __sed -rn 's#'"$CONAN_PROFILES_PATH"'/(.*)#\1#p'
+}
+
+# Applies completion of profiles based on the current value of `$cur`.
+# Arguments for `conan search --raw` may be passed in order to filter the references list,
+# see `__conan_profiles`.
+__conan_complete_profiles() {
+	COMPREPLY=( $(compgen -W "$(__conan_profiles_fast "$@")" -- "$cur") ) 
 }
 
 
