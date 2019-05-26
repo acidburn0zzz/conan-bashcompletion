@@ -1,6 +1,6 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+**Table of Contents**  
 
 - [Introduction](#introduction)
 - [Installation](#installation)
@@ -63,7 +63,7 @@ if the reference is defined, this script provides completion of:
 ## I can't complete references, profiles or layouts. What can I do?
 
 You should check if your installation of conan is standard, ie conan ressources are in default locations. 
-If it's not the case redefine the corresponding variables in the script to enable completions
+If it's not the case define the following variables
 
    ----------------------------------------------------------------------------------------------------------------------
    |  Conan ressources                                 |  Default locations         | Variables                         | 

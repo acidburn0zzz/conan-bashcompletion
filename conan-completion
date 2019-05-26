@@ -95,12 +95,19 @@ _conan() {
 
 	# special treatment of some top-level options
 	local command='conan' command_pos=0 subcommand_pos
-    	local CONAN_HOME="$HOME/.conan"
-
-	#TODO get it from "conan config get storage.path"
-	local CONAN_STORAGE_PATH="$CONAN_HOME/data"
-	local CONAN_PROFILES_PATH="$CONAN_HOME/profiles"
-	local CONAN_LAYOUTS_PATH="$CONAN_HOME/layouts"
+    	
+	
+	#Get ressources location from environement
+	local CONAN_HOME="$CONAN_HOME"
+	local CONAN_STORAGE_PATH="$CONAN_STORAGE_PATH"
+	local CONAN_PROFILES_PATH="$CONAN_PROFILES_PATH"
+	local CONAN_LAYOUTS_PATH="$CONAN_LAYOUTS_PATH"
+	
+	#if not defined, set default locations
+	[ -z "$CONAN_HOME" ] && CONAN_HOME="$HOME/.conan"
+	[ -z "$CONAN_STORAGE_PATH" ] && CONAN_STORAGE_PATH="$CONAN_HOME/data"
+	[ -z "$CONAN_PROFILES_PATH" ] && CONAN_PROFILES_PATH="$CONAN_HOME/profiles"
+	[ -z "$CONAN_LAYOUTS_PATH" ] && CONAN_LAYOUTS_PATH="$CONAN_HOME/layouts"
 
 	local settings
 
@@ -1111,7 +1118,7 @@ __conan_to_extglob() {
 }
 
 
-
+# This function transforms "opt1 opt2\nopt3 opt4" to "opt1|opt2|opt3|opt4"
 __conan_make_pattern()
 {
 	__conan_to_alternatives "$1" | __sed 's#[ \t]+#|#g'
@@ -1140,6 +1147,8 @@ __conan_subcommands() {
 	return 1
 }
 
+# only used by __conan_analyse_command_line : it builds pattern
+# for boolean , arg and map options
 __conan_build_tmp_options()
 {
 	#build patterns
@@ -1364,15 +1373,7 @@ __conan_process_arg_options()
 	return 1
 }
 
-_xyz()
-{
-  local cur=${COMP_WORDS[COMP_CWORD]}
 
-  local IFS=$'\n'
-  COMPREPLY=( $( compgen -o plusdirs  -f -X '!*conanfile.py' -- $cur )  )
-}
-
-complete -o filenames -F _xyz xyz
 
 __conan_process_non_args()
 {
@@ -1448,6 +1449,7 @@ __conan_process_non_args()
 	
 }
 
+# Complete recipe attributes : v1.15
 __conan_reference_attributes()
 {
 	local attributes="name version url homepage license author description topics generators exports exports_sources short_paths apply_env build_policy revision_mode settings options default_options"	
@@ -1461,12 +1463,13 @@ __conan_reference_attributes()
 	__echo "$attributes"
 }
 
+# Return layouts list (depends on $CONAN_LAYOUTS_PATH)
 __conan_layouts_fast()
 {
 	__ls -d1 $CONAN_LAYOUTS_PATH/* | __sed -rn 's#'"$CONAN_LAYOUTS_PATH"'/(.*)#\1#p'
 }
 
-
+# Complete recipe's options using "conan inspec -a options $recipe"
 __conan_complete_package_options()
 {
 	if [ ! "$ckey" == "" ] && [[ "$copt" == @(--options|-o) ]]; then
@@ -1495,6 +1498,7 @@ __conan_complete_settings_by_key()
 	return 1
 }
 
+# Complete settings (only builtins) : 1.15
 __conan_complete_settings()
 {
 	local options=""
@@ -1520,7 +1524,7 @@ __conan_complete_receipe_deps()
 	__echo "$deps"
 }
 
-#read ini elements (profiles or server.conf)
+# Parse ini files  (profiles or server.conf) and return ini elements (section.key)
 __conan_ini_elements()
 {
 	ini_elements=$(awk -F ' *= *' '{ if ($1 ~ /^\[/) section=$1; else if ($1 !~ /^$/) print section $1 }' $CONAN_HOME/$1 | __sed -rn "s#\[(\w+)\](\w+)#\1.\2#p")
@@ -1533,14 +1537,7 @@ __conan_complete_number() {
 			__conan_nospace
 }
 
-# Outputs a list of all references, regardless of their running state.
-# Arguments for `conan ps` may be passed in order to filter the reference list,
-# e.g. `--query` `--remote` .
-__conan_references() {
-	__conan_q search --raw "$@"
-}
-
-
+# Return reference list (pkg/version@user/channel)
 __conan_references_fast(){
 	__ls -d1 $CONAN_STORAGE_PATH/*/*/*/*/ | __sed -rn 's#'"$CONAN_STORAGE_PATH"'/(.*)/(.*)/(.*)/(.*)/#\1/\2@\3/\4#p'
 }
