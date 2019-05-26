@@ -650,7 +650,7 @@ _conan_profile_show()
 
 _conan_profile_new() 
 {
-	boolean_options="-h --help --detect"
+	boolean_options="-h --help --detect --force"
 	arg_options=""
 	map_options=""
 	non_arg_options="profiles"
@@ -1046,7 +1046,7 @@ _conan_download()
 ###############################################
 _conan_inspect() 
 {
-	boolean_options="-h --help -re --recipe"
+	boolean_options="-h --help -re --recipe --raw"
 	arg_options="-a --attribute -r --remote -j --json"
 	map_options=""
 	non_arg_options="references_or_recipe_path"
@@ -1626,6 +1626,7 @@ __conan_complete_generators() {
 		json
 		premake
 		make
+		deploy
 	" -- "$cur" ) )
 }
 

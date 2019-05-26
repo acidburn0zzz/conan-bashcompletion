@@ -11,7 +11,7 @@
   - [My custom generator is not suggested. Can I add it?](#my-custom-generator-is-not-suggested-can-i-add-it)
 - [Known limitations](#known-limitations)
 - [License](#license)
-
+--
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # Introduction
@@ -54,7 +54,7 @@ if the reference is defined, this script provides completion of:
 
 ## Is my version of conan is supported?
 
-  This completion is tested with conan 1.14 and bash 4.4 but it should work with further versions of conan 
+  This completion is tested with conan 1.15 and bash 4.4 but it should work with further versions of conan 
   or other bash versions.
 
   If you find a bug, please bugtrack [here](https://gitlab.com/akim.saidani/conan-bashcompletion/issues)
