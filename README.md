@@ -67,7 +67,7 @@ If it's not the case define the following variables
 
    --------------------------------------------------------------------------------------------------------------
    |  Variables                 | Conan ressources                                  |  Default locations        | 
-   |--------------------------------------------------------------------------------|---------------------------|
+   |------------------------------------------------------------------------------------------------------------|
    |  CONAN_HOME                |  root configuration directory                     |   $HOME/.conan            |
    |  CONAN_PROFILES_PATH       |  profile directories                              | $HOME/.conan/profiles     |
    |  CONAN_LAYOUTS_LOCATION    |  layouts directories                              | $HOME/.conan              |
