@@ -65,14 +65,14 @@ if the reference is defined, this script provides completion of:
 You should check if your installation of conan is standard, ie conan ressources are in default locations. 
 If it's not the case define the following variables
 
-   ----------------------------------------------------------------------------------------------------------------------
-   |  Conan ressources                                 |  Default locations         | Variables                         | 
-   |---------------------------------------------------|----------------------------|-----------------------------------|
-   |  root configuration directory                     |  $HOME/.conan              |  CONAN_HOME                       |
-   |  profile directories                              |  $HOME/.conan/profiles     |  CONAN_PROFILES_PATH              |
-   |  layouts directories                              |  $HOME/.conan              |  CONAN_LAYOUTS_LOCATION           |
-   |  data storage where packages are stored           |  $HOME/.conan/data         |  CONAN_STORAGE_PATH               |
-   ----------------------------------------------------------------------------------------------------------------------
+   --------------------------------------------------------------------------------------------------------------
+   |  Variables                 | Conan ressources                                  |  Default locations        | 
+   |--------------------------------------------------------------------------------|---------------------------|
+   |  CONAN_HOME                |  root configuration directory                     |   $HOME/.conan            |
+   |  CONAN_PROFILES_PATH       |  profile directories                              | $HOME/.conan/profiles     |
+   |  CONAN_LAYOUTS_LOCATION    |  layouts directories                              | $HOME/.conan              |
+   |  CONAN_STORAGE_PATH        |  data storage where packages are stored           | $HOME/.conan/data         |
+   --------------------------------------------------------------------------------------------------------------
 
 Check also known limitations about completions such as remote ressouces completion.
 
