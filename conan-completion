@@ -317,12 +317,16 @@ _conan_new() {
 	-cio --ci-travis-osx -ciw --ci-appveyor-win -ciglg --cilg-gitlab-gcc
 	-ciglc --ci-gitlab-clang -ciccc --ci-circleci-gcc -ciccg --ci-circleci-clang
 	-cicco --ci-circleci-osx -gi --gitignore"
-	arg_options="-ciu --ci-upload-url"
+	arg_options="-ciu --ci-upload-url -m --template"
 	map_options=""
 	non_arg_options="reference_suggestions"
 	__conan_analyse_command_line 
 	case "$prev" in
 		-ciu|--ci-upload-url)
+			return
+			;;
+		-m|--template)
+			_filedir
 			return
 			;;
 	esac
@@ -1296,7 +1300,7 @@ __conan_process_arg_options()
 			;;
 		--build|-b)
 			deps=$(__conan_complete_receipe_deps $recipe)
-			COMPREPLY=( $( compgen -W "missing outdated always never $deps" "$cur" ) )
+			COMPREPLY=( $( compgen -W "missing outdated always never casacade $deps" "$cur" ) )
 			return
 			;;
 		--profile|-pr)

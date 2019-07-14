@@ -54,7 +54,7 @@ if the reference is defined, this script provides completion of:
 
 ## Is my version of conan is supported?
 
-  This completion is tested with conan 1.15 and bash 4.4 but it should work with further versions of conan 
+  This completion is tested with conan 1.17 and bash 4.4 but it should work with further versions of conan 
   or other bash versions.
 
   If you find a bug, please bugtrack [here](https://gitlab.com/akim.saidani/conan-bashcompletion/issues)
