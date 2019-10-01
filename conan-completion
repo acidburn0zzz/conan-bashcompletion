@@ -162,9 +162,6 @@ _conan_install()
 	non_arg_options="references_or_recipe_path partial_references"
 	__conan_analyse_command_line "capture_recipe"
 
-	# Process map options (--opt key=value)
-	__conan_complete_package_options && return
-	__conan_complete_settings_by_key && return
 	__conan_process_arg_options && return
 
 	__conan_process_non_args
@@ -346,10 +343,6 @@ _conan_create() {
 	non_arg_options="recipe_path partial_references"
 	__conan_analyse_command_line "capture_recipe"
 	
-	__conan_complete_package_options && return
-	__conan_complete_settings_by_key && return
-
-
 	case "$prev" in
 		-*)
 			__conan_process_arg_options && return
@@ -399,10 +392,6 @@ _conan_export_pkg() {
 	non_arg_options="recipe_path partial_references"
 	__conan_analyse_command_line "capture_recipe"
 
-	# Process arg map options (--opt key=value)
-	__conan_complete_package_options && return
-	__conan_complete_settings_by_key && return
-
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options  && return
 
@@ -420,10 +409,6 @@ _conan_test() {
 	map_options="-o --options -s --settings"
 	non_arg_options="recipe_path partial_references"
 	__conan_analyse_command_line "capture_recipe"
-
-	# Process arg map options (--opt key=value)
-	__conan_complete_package_options && return
-	__conan_complete_settings_by_key && return
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options && return
@@ -591,11 +576,6 @@ _conan_workspace_install()
 	map_options="-o  --options -s --settings"
 	non_arg_options="workspace_file"
 	__conan_analyse_command_line "capture_recipe"
-
-	# Process arg map options (--opt key=value)
-	__conan_complete_package_options && return
-	__conan_complete_settings_by_key && return
-
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options && return
@@ -1243,6 +1223,15 @@ __conan_analyse_command_line()
 			(( counter++ ))
 		done
 	fi
+
+    # Process arg map options (--opt key=value)
+   if  [ -n "$map_options_blob" ] && eval "case '--options' in $map_options_blob) true ;; *) false ;; esac"; then
+	    __conan_complete_package_options && return
+   fi
+
+   if  [ -n "$map_options_blob" ] && eval "case '--settings' in $map_options_blob) true ;; *) false ;; esac"; then
+	    __conan_complete_settings_by_key && return
+   fi
 }
 
 ####
@@ -1476,6 +1465,8 @@ __conan_layouts_fast()
 # Complete recipe's options using "conan inspec -a options $recipe"
 __conan_complete_package_options()
 {
+    #
+
 	if [ ! "$ckey" == "" ] && [[ "$copt" == @(--options|-o) ]]; then
 		local options=""
 		if [ ! "$recipe" == "" ]; then
