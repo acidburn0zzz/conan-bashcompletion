@@ -159,8 +159,8 @@ _conan_conan()
 _conan_install() 
 {
 	boolean_options="--help -h -u --update --no-imports"
-	arg_options="-v --verify -pr --profile -r --remote -b --build -e --env -g --generator -j -json -m --manifests -mi --manifests-interactive"
-	map_options="-o --options -s --settings"
+	arg_options="-v --verify -pr --profile -r --remote -b --build -g --generator -j -json -m --manifests -mi --manifests-interactive"
+	map_options="-o --options -s --settings -e --env"
 	non_arg_options="references_or_recipe_path partial_references"
 	__conan_analyse_command_line "capture_recipe" && return
 
@@ -262,8 +262,8 @@ _conan_info() {
 	boolean_options="--help -h -u --update --paths"
 	arg_options="-bo --build-order -g --graph -if --instal-folder -j --json 
                      -n --only --package-filter -db --dry-build	-b --build
-                     -e --env -pr --profile -r --remote"
-	map_options="-o --options -s --settings"
+                     -pr --profile -r --remote"
+	map_options="-o --options -s --settings -e --env"
 	non_arg_options="references path_from_recipe"
 
 	__conan_analyse_command_line "capture_recipe" && return
@@ -340,8 +340,8 @@ _conan_create() {
 	-u --update -ne --not-export"
 	arg_options="-j --json -tbf --test-build-folder -tf --test-order
 	-m --manifests -mi --manifests-interactive -v --verify
-	-b --build -e --env -pr --profile -r --remote"
-	map_options="-o --options -s --settings"
+	-b --build -pr --profile -r --remote"
+	map_options="-o --options -s --settings -e --env"
 	non_arg_options="recipe_path partial_references"
 	__conan_analyse_command_line "capture_recipe" && return
 	
@@ -389,8 +389,8 @@ _conan_export() {
 _conan_export_pkg() {
 	boolean_options="-h --help -f --force"
 	arg_options="-bf --build-folder -if --install-folder -pf --package-folder
-	 -sf --source-folder -e --env -pr --profile -j --json"
-	map_options="-o --options -s --settings"
+	 -sf --source-folder -pr --profile -j --json"
+	map_options="-o --options -s --settings -e --env"
 	non_arg_options="recipe_path partial_references"
 	__conan_analyse_command_line "capture_recipe" && return
 
@@ -407,8 +407,8 @@ _conan_export_pkg() {
 ###############################################
 _conan_test() {
 	boolean_options="-h --help -u --update"
-	arg_options="-tbf --test-build-folder -e --env -pr --profile -r --remote -b --build"
-	map_options="-o --options -s --settings"
+	arg_options="-tbf --test-build-folder -pr --profile -r --remote -b --build"
+	map_options="-o --options -s --settings -e --env"
 	non_arg_options="recipe_path partial_references"
 	__conan_analyse_command_line "capture_recipe" && return
 
@@ -575,7 +575,7 @@ _conan_workspace_install()
 {
 	boolean_options="-h --help -u --update"
 	arg_options="-b --build -e --env -pr --profile -r --remote"
-	map_options="-o  --options -s --settings"
+	map_options="-o  --options -s --settings -e --env"
 	non_arg_options="workspace_file"
 	__conan_analyse_command_line "capture_recipe" && return
 
@@ -1340,8 +1340,9 @@ __conan_process_arg_options()
 			return
 			;;
 		--env|-e)
-			#TODO FIX
-			COMPREPLY=( $( compgen -W "$cur" ) )
+			envs=$(env | sed -rn 's#([A-Z][^=%]+)=.*#\1#p')
+			COMPREPLY=( $( compgen -S = -W "$envs" "$cur" ))
+            __conan_nospace
 			return
 			;;
 		--options|-o)
