@@ -81,9 +81,11 @@ _conan() {
 	local positional_args=()
 	local cpos=0
 	local cboolean_options=()
-	local copt=""
-	local ckey=""
-
+    local carg_options=()
+    local cmap_options=()
+    local cpositional_args=()
+    local current_map_option=""
+    local current_map_value=""
 
 	local recipe=""
 	local recipe_type=""
@@ -157,10 +159,10 @@ _conan_conan()
 _conan_install() 
 {
 	boolean_options="--help -h -u --update --no-imports"
-	arg_options="-v --verify -pr --profile -r --remote -b --build -e -env -g --generator -j -json -m --manifests -mi --manifests-interactive"
+	arg_options="-v --verify -pr --profile -r --remote -b --build -e --env -g --generator -j -json -m --manifests -mi --manifests-interactive"
 	map_options="-o --options -s --settings"
 	non_arg_options="references_or_recipe_path partial_references"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 
 	__conan_process_arg_options && return
 
@@ -193,7 +195,7 @@ _conan_config_get() {
 	arg_options=""
 	map_options=""
 	non_arg_options="configuration_item"
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 	
 	__conan_process_non_args "$1"
 }
@@ -211,7 +213,7 @@ _conan_config_install() {
 	boolean_options="--help -h"
 	arg_options="--verify-ssl --type -t -a --args -sf --source-folder -tf --target-folder"
 	map_options=""
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 	case "$prev" in
 		--verify-ssl)
 			COMPREPLY=( $( compgen -W  "True False" -- "$cur" ) )
@@ -248,7 +250,7 @@ _conan_get() {
 	map_options=""
 	non_arg_options="references path_from_recipe"
 
-	__conan_analyse_command_line "capture_recipe"	
+	__conan_analyse_command_line "capture_recipe" && return
 	__conan_process_arg_options && return
 	__conan_process_non_args
 }
@@ -264,7 +266,7 @@ _conan_info() {
 	map_options="-o --options -s --settings"
 	non_arg_options="references path_from_recipe"
 
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 	case "$prev" in
 		-g|--graph)
 			_filedir
@@ -317,7 +319,7 @@ _conan_new() {
 	arg_options="-ciu --ci-upload-url -m --template"
 	map_options=""
 	non_arg_options="reference_suggestions"
-	__conan_analyse_command_line 
+	__conan_analyse_command_line && return 
 	case "$prev" in
 		-ciu|--ci-upload-url)
 			return
@@ -341,7 +343,7 @@ _conan_create() {
 	-b --build -e --env -pr --profile -r --remote"
 	map_options="-o --options -s --settings"
 	non_arg_options="recipe_path partial_references"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 	
 	case "$prev" in
 		-*)
@@ -360,7 +362,7 @@ _conan_upload() {
 	-no --no-overwrite -j --json"
 	map_options=""
 	non_arg_options="references_or_patterns"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 	__conan_process_arg_options && return
 
 	__conan_process_non_args
@@ -374,9 +376,9 @@ _conan_export() {
 	boolean_options="-h --help -k -ks --keep-source"
 	arg_options=""
 	map_options=""
-	__conan_analyse_command_line
-	non_arg_options="recipe_path partial_references"
+    non_arg_options="recipe_path partial_references"
 
+	__conan_analyse_command_line && return
 	__conan_process_non_args
 }
 
@@ -390,7 +392,7 @@ _conan_export_pkg() {
 	 -sf --source-folder -e --env -pr --profile -j --json"
 	map_options="-o --options -s --settings"
 	non_arg_options="recipe_path partial_references"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options  && return
@@ -408,7 +410,7 @@ _conan_test() {
 	arg_options="-tbf --test-build-folder -e --env -pr --profile -r --remote -b --build"
 	map_options="-o --options -s --settings"
 	non_arg_options="recipe_path partial_references"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options && return
@@ -426,7 +428,7 @@ _conan_source() {
 	arg_options="-sf --source-folder -if --install-folder"
 	map_options=""
 	non_arg_options="recipe_path"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options && return
@@ -445,7 +447,7 @@ _conan_build() {
 	arg_options="-bf --build-folder -sf --source-folder -if --install-folder"
 	map_options=""
 	non_arg_options="recipe_path"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 
 	#process arg options (--opt=value_opt)
 	case "$prev" in
@@ -471,7 +473,7 @@ _conan_package() {
 	arg_options="-bf --build-folder -sf --source-folder -if --install-folder -pf --package-folder"
 	map_options=""
 	non_arg_options="recipe_path"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 
 	#process arg options (--opt=value_opt)
 	case "$prev" in
@@ -513,7 +515,7 @@ _conan_editable_add()
 	arg_options="-l --layout"
 	map_options=""
 	non_arg_options="package_folder references"
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options && return
@@ -528,7 +530,7 @@ _conan_editable_remove()
 	arg_options=""
 	map_options=""
 	non_arg_options="package_folder references"
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options && return
@@ -575,7 +577,7 @@ _conan_workspace_install()
 	arg_options="-b --build -e --env -pr --profile -r --remote"
 	map_options="-o  --options -s --settings"
 	non_arg_options="workspace_file"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 
 	#process arg options (--opt=value_opt)
 	__conan_process_arg_options && return
@@ -626,7 +628,7 @@ _conan_profile_show()
 	arg_options=""
 	map_options=""
 	non_arg_options="profiles"
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 	
 	#process non flags options
 	__conan_process_non_args
@@ -638,7 +640,7 @@ _conan_profile_new()
 	arg_options=""
 	map_options=""
 	non_arg_options="profiles"
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 
 	#process non flags options
 	__conan_process_non_args
@@ -651,7 +653,7 @@ _conan_profile_get()
 	arg_options=""
 	map_options=""
 	non_arg_options="profile_item profiles"
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 
 	#process non flags options
 	__conan_process_non_args "$@"
@@ -732,7 +734,7 @@ _conan_remote_add()
 	arg_options="-i --insert"
 	map_options=""
 
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 	__conan_process_arg_options && return
 
 	case "$cur" in
@@ -768,7 +770,7 @@ _conan_remote_remove()
 	arg_options=""
 	map_options=""
 	non_arg_options="remotes"
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 
 	#process non flags options
 	__conan_process_non_args "$@"
@@ -779,7 +781,7 @@ _conan_remote_rename()
 	boolean_options="-h --help"
 	arg_options=""
 	map_options=""
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 	case "$cur" in
 		-*)
 			[ "$cpos" == "0" ] && COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
@@ -804,7 +806,7 @@ _conan_remote_list_ref()
 	arg_options=""
 	map_options=""
 	non_arg_options=""
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 
 	__conan_process_non_args "$@"
 }
@@ -816,7 +818,7 @@ _conan_remote_add_ref()
 	arg_options=""
 	map_options=""
 	non_arg_options="references remotes"
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 	
 	__conan_process_non_args "$@"
 }
@@ -827,7 +829,7 @@ _conan_remote_remove_ref()
 	arg_options=""
 	map_options=""
 	non_arg_options="references"
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 
 	__conan_process_non_args "$@"
 }
@@ -848,7 +850,7 @@ _conan_remote_add_pref()
 	boolean_options="-h --help"
 	arg_options=""
 	map_options=""
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 	case "$cur" in
 		-*)
 			[ "$cpos" == "0" ] && COMPREPLY=( $( compgen -W "$total_options" -- "$cur" ) )
@@ -891,7 +893,7 @@ _conan_user()
 	boolean_options="-h --help -c --clean"
 	arg_options="-p --password -j --json -r --remote"
 	map_options=""
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 
 	#process arg options (--opt=value_opt)
 	case $prev in
@@ -925,7 +927,7 @@ _conan_imports()
 	boolean_options="-h --help -u --undo"
 	arg_options="-if --install-folder -imf --import-folder"
 	map_options=""
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 	__conan_process_arg_options && return
 
 	case "$cur" in
@@ -952,7 +954,7 @@ _conan_copy()
 	arg_options="-p --package"
 	map_options=""
 	non_arg_options="references user_channels"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 	__conan_process_arg_options && return
 
 	__conan_process_non_args "$@"
@@ -968,7 +970,7 @@ _conan_remove()
 	arg_options="-b --build -q --query -r --remote -s --src -t --system-reqs"
 	map_options=""
 	non_arg_options="references_or_patterns"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 
 	#process arg options (--opt=value_opt)
 	case $prev in
@@ -1002,7 +1004,7 @@ _conan_alias()
 	arg_options=""
 	map_options=""
 	non_arg_options="reference_aliases references"
-	__conan_analyse_command_line
+	__conan_analyse_command_line && return
 	
 	__conan_process_non_args "$@"
 }
@@ -1017,7 +1019,7 @@ _conan_download()
 	arg_options="-p --package -r --remote"
 	map_options=""
 	non_arg_options="references"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 	__conan_process_arg_options && return
 
 	__conan_process_non_args "$@"
@@ -1034,7 +1036,7 @@ _conan_inspect()
 	arg_options="-a --attribute -r --remote -j --json"
 	map_options=""
 	non_arg_options="references_or_recipe_path"
-	__conan_analyse_command_line "capture_recipe"
+	__conan_analyse_command_line "capture_recipe" && return
 	__conan_process_arg_options && return
 
 	__conan_process_non_args "$@"
@@ -1166,34 +1168,70 @@ __conan_analyse_command_line()
 	#start after commands or subcommands
 	local counter=$((${subcommand_pos:-${command_pos}} + 1))
 	while [ "$counter" -le "$cword" ]; do
-		copt=""
-		ckey=""
+        # Get current word
+        current_word=${words[$counter]}
+        current_option=""
+        current_value=""
+        use_equal_syntax=0
+        if [ ! "$current_word" == "" ] && [[ "$current_word" == *=* ]]; then
+            current_option=${current_word##=*}
+            current_value=${current_word##*=}
+            use_equal_syntax=1
+        else
+            current_option=$current_word
+        fi
+
+        
 		#is boolean
-		if    [ -n "$boolean_options_blob" ] && eval "case '${words[$counter]}' in $boolean_options_blob) true ;; *) false ;; esac"; then		
-			#Do nothing
-			cboolean_options+=("${words[$counter]}")
+		if    [ -n "$boolean_options_blob" ] && eval "case '$current_option' in $boolean_options_blob) true ;; *) false ;; esac"; then		
+			cboolean_options+=("$current_option='True'")
+            (( counter++ ))
 		#Is it a arg option
-		elif  [ -n "$arg_options_blob" ] && eval "case '${words[$counter]}' in $arg_options_blob) true ;; *) false ;; esac"; then
-			# Eat the option
-			(( counter++ ))
-			# eat "=" in case of --option=arg syntax
-			[ "${words[$counter]}" = "=" ] && (( counter++ ))
+		elif  [ -n "$arg_options_blob" ] && eval "case '$current_option' in $arg_options_blob) true ;; *) false ;; esac"; then
+
+            if [[ "$use_equal_syntax" == "0" ]]; then
+			    (( counter++ ))
+                if  [ "$counter" -le "$cword" ]; then
+                    current_value=${words[$counter]}
+                fi
+                carg_options+=("$current_option='$current_value'")
+            fi
+            (( counter++ ))
 		#Is it a map option?
-		elif  [ -n "$map_options_blob" ] && eval "case '${words[$counter]}' in $map_options_blob) true ;; *) false ;; esac"; then
-			copt="${words[$counter]}"			
-			(( counter++))
-			[ "${words[$counter]}" = "=" ] && (( counter++ ))
-			ckey="${words[$counter]}"
-			(( counter++ ))
-			[ "${words[$counter]}" = "=" ] && (( counter++ ))
+		elif  [ -n "$map_options_blob" ] && eval "case '$current_option' in $map_options_blob) true ;; *) false ;; esac"; then
+			if [[ "$use_equal_syntax" == "0" ]]; then
+			    (( counter++ ))
+                if  [ "$counter" -le "$cword" ]; then
+                    current_map_value=""
+                    current_map_option=${words[$counter]}
+                     if [ ! "$current_map_option" == "" ] && [[ "$current_map_option" == *=* ]]; then
+                        #echo "current_map_option=$current_map_option"   
+                        current_map_value=${current_map_option/*=/}                        
+                        current_map_option=${current_map_option/=*/}
+                        #echo "current_map_option=$current_map_option"                        
+                        (( counter++ ))
+                    else
+                        (( counter++ ))
+                        if  [ "$counter" -le "$cword" ]; then
+                            current_map_value=${words[$counter]}
+                        fi                        
+                        (( counter++ ))                       
+                    fi
+                    #echo "-> $current_option:'$current_map_option=$current_map_value'"
+                    carg_options+=("$current_option:'$current_map_option=$current_map_value'")                   
+                fi
+            fi
 
 		#Is it a option not defined (should not happen)
-		elif [[ ${words[$counter]} == -* ]]; then
+		elif [[ $current_option == -* ]]; then
+            (( counter++ ))
+            #__echo "Option not defined : $current_option"
 			true
 		else
-			 [ -n "${words[$counter]}" ] && [ "$((counter+1))" -le "$cword"  ] && positional_args+=("$counter")
+			 [ -n "${words[$counter]}" ] && [ "$((counter+1))" -le "$cword"  ] && positional_args+=("$counter") && cpositional_args+=("$current_option")
+             (( counter++ ))
 		fi
-		(( counter++ ))
+		
 	done
 
 	cpos=${#positional_args[*]}
@@ -1203,6 +1241,7 @@ __conan_analyse_command_line()
 		counter=0
 		while [ "$counter" -le "$cpos" ]; do
 			local current="${words[${positional_args[$counter]}]}"
+            
 			if [[  "$current" == *@* ]]; then
 				recipe="$current"
 				recipe_type="reference"
@@ -1218,6 +1257,8 @@ __conan_analyse_command_line()
 			else
 				[ -f "$recipe_path/conanfile.txt" ] && break
 				[ -f "$recipe_path/conanfile.py" ] && break
+                [ -f "$recipe_path/export/conanfile.txt" ] && break
+				[ -f "$recipe_path/export/conanfile.py" ] && break
 			fi
 			recipe=""
 			(( counter++ ))
@@ -1232,6 +1273,9 @@ __conan_analyse_command_line()
    if  [ -n "$map_options_blob" ] && eval "case '--settings' in $map_options_blob) true ;; *) false ;; esac"; then
 	    __conan_complete_settings_by_key && return
    fi
+
+   #Continue
+   return 1
 }
 
 ####
@@ -1262,7 +1306,6 @@ __conan_process_arg_options()
 		#option not processed		
 		return 1
 	fi
-
 	case "$prev" in
 		-i|--insert)
 			#conan remote add
@@ -1462,17 +1505,18 @@ __conan_layouts_fast()
 	__ls -d1 $CONAN_LAYOUTS_PATH/* | __sed -rn 's#'"$CONAN_LAYOUTS_PATH"'/(.*)#\1#p'
 }
 
-# Complete recipe's options using "conan inspec -a options $recipe"
+# Complete recipe's option values using "conan inspect -a options $recipe"
 __conan_complete_package_options()
 {
-    #
-
-	if [ ! "$ckey" == "" ] && [[ "$copt" == @(--options|-o) ]]; then
-		local options=""
+    #echo "ckey='$ckey' prev='$prev'"
+	if [ ! "$current_map_option" == "" ] && [[ "$current_option" == @(--options|-o) ]]; then
+        #local current_option=${ckey/=*/}
+        local current_value=${cur##*=}
+		local option_values=""
 		if [ ! "$recipe" == "" ]; then
-			options=$(__conan_q inspect "$recipe" -a options | __sed -rn "s# +$ckey\: \[(.*)\]#\1#p" | __sed 's# *, *# #g' )
-		fi
-		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
+			option_values=$(__conan_q inspect "$recipe" -a options | __sed -rn "s# +$current_map_option\: \[(.*)\]#\1#p" | __sed 's# *, *# #g' )
+		fi    
+		COMPREPLY=( $( compgen -P "$current_map_option=" -W "$option_values" -- "$current_value" ) )
 		return
 	fi
 	return 1
@@ -1482,12 +1526,13 @@ __conan_complete_package_options()
 
 __conan_complete_settings_by_key()
 {
-	if [ ! "$ckey" == "" ] && [[ "$copt" == @(--settings|-s) ]]; then
-		local options=""
+    #echo "ckey='$ckey' prev='$prev'"
+	if [ ! "$current_map_option" == "" ] && [[ "$current_option" == @(--settings|-s) ]]; then
+        #echo "in-------------"
+		local option_values=""
 		__conan_get_settings
-		#options=$(python parse_settings.py | __sed -rn "s#$ckey=(.*)#\1#p")
-		options=$(__echo "$settings" | __sed -rn "s#$ckey=(.*)#\1#p")
-		COMPREPLY=( $( compgen -W "$options" -- "${cur##*=}" ) )
+		option_values=$(__echo "$settings" | __sed -rn "s#$current_map_option=(.*)#\1#p")
+		COMPREPLY=( $( compgen -P "$current_map_option=" -W "$option_values" -- "${cur##*=}" ) )
 		return
 	fi
 	return 1
@@ -1498,7 +1543,6 @@ __conan_complete_settings()
 {
 	local options=""
 	__conan_get_settings
-	#options=$(python parse_settings.py | __sed -rn "s#([^=]+)=.*#\1#p")
 	options=$(__echo "$settings" | __sed -rn "s#([^=]+)=.*#\1#p")
 	COMPREPLY=( $( compgen -W "$options" -S = -- "${cur}" ) )
 }
@@ -1580,7 +1624,7 @@ __conan_remotes(){
 }
 
 __conan_remotes_fast(){
-	__cat $CONAN_HOME/registry.json | __sed -rn 's#"name".*"(.*)"#\1#p' 
+	__cat $CONAN_HOME/remotes.json | __sed -rn 's#"name".*"(.*)"#\1#p'
 }
 
 # Applies completion of remotes based on the current value of `$cur`.
@@ -1629,7 +1673,9 @@ _conan_complete_reference_options()
 {
 	local options=""
 	if [ ! "$recipe" == "" ]; then
-		options=$(__conan_q inspect "$recipe" -a options | __sed -rn 's# +(\w+)\:.*#\1#p')			
+        #echo "recipe=$recipe cur=$cur"
+		options=$(__conan_q inspect "$recipe" -a options | __sed -rn 's# +(\w+)\:.*#\1#p')	
+        #echo "options=$options" 		
 	fi
 	COMPREPLY=( $( compgen -W "$options" -S = -- "$cur" ) )
 }
